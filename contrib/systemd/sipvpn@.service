@@ -1,0 +1,13 @@
+[Unit]
+Description=Simple stateless VPN
+After=network.target
+Documentation=man:sipvpn(8)
+
+[Service]
+Type=forking
+KillSignal=SIGINT
+ExecStart=/usr/bin/sipvpn -c /etc/sipvpn/%i.conf -d --pidfile /run/sipvpn@%i.pid --logfile /var/log/sipvpn@%i.log
+PIDFile=/run/sipvpn@%i.pid
+
+[Install]
+WantedBy=multi-user.target

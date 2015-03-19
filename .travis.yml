@@ -1,0 +1,14 @@
+language: c
+cache: apt
+compiler:
+    - gcc
+    - clang
+before_script:
+    - "autoreconf -if"
+script:
+    - "./configure --prefix=/usr --sysconfdir=/etc"
+    - "make"
+    - "make DESTDIR=/tmp/sysroot install"
+branches:
+    only:
+        - master
