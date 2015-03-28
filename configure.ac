@@ -31,7 +31,7 @@ AC_ARG_ENABLE(
 
 # Checks for header files.
 AC_HEADER_ASSERT
-AC_CHECK_HEADERS([fcntl.h netdb.h pwd.h stddef.h stdint.h stdio.h stdlib.h string.h sys/ioctl.h sys/select.h sys/socket.h sys/stat.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h pwd.h stddef.h stdint.h stdio.h stdlib.h string.h sys/ioctl.h sys/select.h sys/socket.h sys/stat.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE

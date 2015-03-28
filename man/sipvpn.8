@@ -1,4 +1,4 @@
-.TH SIPVPN 8 "Mar 28, 2015"
+.TH SIPVPN 8 "Mar 29, 2015"
 .SH NAME
 sipvpn \- Simple stateless VPN
 
@@ -68,9 +68,14 @@ TUN device name, default: vpn0
 MTU of TUN device
 
 .TP
-\fImtu=\fR
+\fIaddress=\fR
 .br
 address of TUN device
+
+.TP
+\fIroute=\fR
+.br
+add route or not (yes or no)
 
 .TP
 \fIup=\fR
@@ -81,34 +86,6 @@ hook script to run after startup
 \fIdown=\fR
 .br
 hook script to run before quit
-
-.SH EXAMPLE
-
-Sample client config file:
-
-    user=nobody
-    mode=client
-    server=1.2.3.4
-    port=1205
-    password=zwa2MAgkoFP7
-    tunif=vpn0
-    mtu=1400
-    address=10.12.5.1/24
-    up=/etc/sipvpn/hooks/client_up.sh
-    down=/etc/sipvpn/hooks/client_down.sh
-
-Sample server config file:
-
-    user=nobody
-    mode=server
-    server=0.0.0.0
-    port=1205
-    password=zwa2MAgkoFP7
-    tunif=vpn0
-    mtu=1400
-    address=10.12.5.2/24
-    up=/etc/sipvpn/hooks/server_up.sh
-    down=/etc/sipvpn/hooks/server_down.sh
 
 .SH AUTHOR
 .PP

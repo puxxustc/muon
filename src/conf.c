@@ -46,7 +46,7 @@ static void help(void)
 	       "Bug report: <%s>.\n", PACKAGE, PACKAGE_BUGREPORT);
 }
 
-#define my_strncpy(dest, src) _strncpy(dest, src, sizeof(dest))
+#define my_strcpy(dest, src) _strncpy(dest, src, sizeof(dest))
 static void _strncpy(char *dest, const char *src, size_t n)
 {
 	char *end = dest + n;
@@ -99,20 +99,22 @@ int read_conf(const char *file, conf_t *conf)
 		char *p = strchr(line, '=');
 		if (p == NULL)
 		{
-			fprintf(stderr, "parse conf file failed at line: %d\n", line_num);
+			fprintf(stderr, "line %d: no \'=\\ found\n", line_num);
+			fclose(f);
+			return -1;
+		}
+		if (isspace(p[-1]) || isspace(p[1]))
+		{
+			fprintf(stderr, "line %d: do not put space before/after \'=\'\n", line_num);
 			fclose(f);
 			return -1;
 		}
 		*p = '\0';
 		char *key = line;
 		char *value = p + 1;
-		if (strcmp(key, "key") != 0)
-		{
-			setenv(key, value, 1);
-		}
 		if (strcmp(key, "user") == 0)
 		{
-			my_strncpy(conf->user, value);
+			my_strcpy(conf->user, value);
 		}
 		else if (strcmp(key, "mode") == 0)
 		{
@@ -126,18 +128,18 @@ int read_conf(const char *file, conf_t *conf)
 			}
 			else
 			{
-				fprintf(stderr, "wrong mode at line: %d\n", line_num);
+				fprintf(stderr, "line %d: mode must be server/client\n", line_num);
 				fclose(f);
 				return -1;
 			}
 		}
 		else if (strcmp(key, "server") == 0)
 		{
-			my_strncpy(conf->server, value);
+			my_strcpy(conf->server, value);
 		}
 		else if (strcmp(key, "port") == 0)
 		{
-			my_strncpy(conf->port, value);
+			my_strcpy(conf->port, value);
 		}
 		else if (strcmp(key, "key") == 0)
 		{
@@ -145,7 +147,7 @@ int read_conf(const char *file, conf_t *conf)
 		}
 		else if (strcmp(key, "tunif") == 0)
 		{
-			my_strncpy(conf->tunif, value);
+			my_strcpy(conf->tunif, value);
 		}
 		else if (strcmp(key, "mtu") == 0)
 		{
@@ -165,15 +167,32 @@ int read_conf(const char *file, conf_t *conf)
 		}
 		else if (strcmp(key, "address") == 0)
 		{
-			my_strncpy(conf->address, value);
+			my_strcpy(conf->address, value);
+		}
+		else if (strcmp(key, "route") == 0)
+		{
+			if (strcmp(value, "yes") == 0)
+			{
+				strcpy(conf->route, "yes");
+			}
+			else if (strcmp(value, "no") == 0)
+			{
+				strcpy(conf->route, "no");
+			}
+			else
+			{
+				fprintf(stderr, "line %d: route must be yes/no\n", line_num);
+				fclose(f);
+				return -1;
+			}
 		}
 		else if (strcmp(key, "up") == 0)
 		{
-			my_strncpy(conf->up, value);
+			my_strcpy(conf->up, value);
 		}
 		else if (strcmp(key, "down") == 0)
 		{
-			my_strncpy(conf->down, value);
+			my_strcpy(conf->down, value);
 		}
 	}
 	fclose(f);
@@ -252,6 +271,7 @@ int parse_args(int argc, char **argv, conf_t *conf)
 		}
 	}
 
+	// 检查参数
 	if (conf->daemon)
 	{
 		if (conf->pidfile[0] == '\0')
@@ -288,6 +308,10 @@ int parse_args(int argc, char **argv, conf_t *conf)
 		fprintf(stderr, "address not set in config file\n");
 		return -1;
 	}
+	if (conf->route[0] == '\0')
+	{
+		strcpy(conf->route, "yes");
+	}
 	if (conf->mtu == 0)
 	{
 		fprintf(stderr, "mtu not set in config file\n");
@@ -298,5 +322,16 @@ int parse_args(int argc, char **argv, conf_t *conf)
 		fprintf(stderr, "key not set in config file\n");
 		return -1;
 	}
+
+	// 设置环境变量
+	setenv("server", conf->server, 1);
+	setenv("port", conf->port, 1);
+	setenv("tunif", conf->tunif, 1);
+	char mtu[8];
+	sprintf(mtu, "%d", conf->mtu);
+	setenv("mtu", mtu, 1);
+	setenv("address", conf->address, 1);
+	setenv("route", conf->route, 1);
+
 	return 0;
 }

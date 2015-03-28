@@ -42,6 +42,7 @@ typedef struct
 	char key[16];
 	char tunif[16];
 	char address[16];
+	char route[16];
 	char up[64];
 	char down[64];
 } conf_t;

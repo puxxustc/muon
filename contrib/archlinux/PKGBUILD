@@ -1,7 +1,7 @@
 # Maintainer:  Xiaoxiao Pu <i@xiaoxiao.im>
 
 pkgname=sipvpn-git
-pkgver=r13.5efd753
+pkgver=r17.777872b
 pkgrel=1
 pkgdesc="Simple stateless VPN"
 arch=('i686' 'x86_64')
