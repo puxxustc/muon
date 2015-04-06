@@ -3,15 +3,17 @@
 
 AC_INIT([sipvpn], [0.1.0], [https://github.com/XiaoxiaoPu/sipvpn/issues], [sipvpn], [https://github.com/XiaoxiaoPu/sipvpn])
 AC_CONFIG_SRCDIR([sipvpn])
-AC_CONFIG_SRCDIR([config.h.in])
+AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_HEADERS([config.h])
 
-AC_CONFIG_AUX_DIR(auto)
+AC_CONFIG_AUX_DIR([.])
+AC_CONFIG_MACRO_DIRS([m4])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 
 # Checks for programs.
 AC_PROG_CC_C99
 AC_PROG_INSTALL
+LT_INIT
 
 # Custom options
 AC_ARG_ENABLE(

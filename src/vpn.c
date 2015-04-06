@@ -26,6 +26,7 @@
 #include <string.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <time.h>
 #include <unistd.h>
 #include "conf.h"
 #include "crypto.h"
@@ -46,6 +47,8 @@ static struct
 } remote;
 
 static uint8_t buf[IV_LEN + MTU_MAX];
+
+static void heartbeat(void);
 
 int vpn_init(const conf_t *config)
 {
@@ -141,7 +144,6 @@ int vpn_init(const conf_t *config)
 int vpn_run(void)
 {
 	fd_set readset;
-	ssize_t n;
 
 	running = 1;
 	while (running)
@@ -150,10 +152,26 @@ int vpn_run(void)
 		FD_SET(tun, &readset);
 		FD_SET(sock, &readset);
 
-		if (select((tun>sock?tun:sock) + 1, &readset, NULL, NULL, NULL) < 0)
+		int r;
+		if ((conf->mode == client) && (conf->keepalive != 0))
+		{
+			struct timeval timeout;
+			timeout.tv_sec = conf->keepalive;
+			timeout.tv_usec = 0;
+			r = select((tun>sock?tun:sock) + 1, &readset, NULL, NULL, &timeout);
+		}
+		else
+		{
+			r = select((tun>sock?tun:sock) + 1, &readset, NULL, NULL, NULL);
+		}
+		if (r < 0)
 		{
 			if (errno == EINTR)
 			{
+				if (conf->keepalive != 0)
+				{
+					heartbeat();
+				}
 				continue;
 			}
 			else
@@ -166,7 +184,7 @@ int vpn_run(void)
 		if (FD_ISSET(tun, &readset))
 		{
 			// 从 tun 设备读取 IP 包
-			n = tun_read(tun, buf + IV_LEN, conf->mtu);
+			ssize_t n = tun_read(tun, buf + IV_LEN, conf->mtu);
 			if (n < 0)
 			{
 				if (errno == EAGAIN || errno == EWOULDBLOCK)
@@ -210,6 +228,7 @@ int vpn_run(void)
 			// 读取 UDP 包
 			struct sockaddr_storage addr;
 			socklen_t addrlen;
+			ssize_t n;
 			if (conf->mode == client)
 			{
 				// client
@@ -266,16 +285,24 @@ int vpn_run(void)
 			}
 			else
 			{
-				n = tun_write(tun, buf + IV_LEN, n - IV_LEN);
-				if (n < 0)
+				if ((buf[IV_LEN] == 0) && (conf->mode == server))
 				{
-					if (errno == EAGAIN || errno == EWOULDBLOCK)
+					// server 接收到一个心跳包，回送一个心跳包
+					heartbeat();
+				}
+				else
+				{
+					n = tun_write(tun, buf + IV_LEN, n - IV_LEN);
+					if (n < 0)
 					{
-						// do nothing
-					}
-					else
-					{
-						ERROR("tun_write");
+						if (errno == EAGAIN || errno == EWOULDBLOCK)
+						{
+							// do nothing
+						}
+						else
+						{
+							ERROR("tun_write");
+						}
 					}
 				}
 				// update remote address
@@ -327,4 +354,23 @@ int vpn_run(void)
 void vpn_stop(void)
 {
 	running = 0;
+}
+
+// 发送心跳包
+static void heartbeat(void)
+{
+	srand(time(NULL));
+	int len = rand() % (conf->mtu + IV_LEN);
+	for (int i = 0; i < len; i++)
+	{
+		buf[i] = (uint8_t)(rand() & 0xff);
+	}
+	buf[IV_LEN] = 0;
+
+	crypto_encrypt(buf, len - IV_LEN);
+	if (remote.addrlen != 0)
+	{
+		sendto(sock, buf, len, 0, (struct sockaddr *)&(remote.addr),
+		       remote.addrlen);
+	}
 }

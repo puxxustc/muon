@@ -33,7 +33,7 @@ for subnet in net:
 EOF
 		} | ip -b -
 	else
-		ip route replace $(ip route get $server | sed -n 1p)
+		ip route replace $(ip route get $server | head -1)
 		ip route add 0.0.0.0/1 dev $tunif
 		ip route add 128.0.0.0/1 dev $tunif
 	fi

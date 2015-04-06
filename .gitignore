@@ -1,11 +1,16 @@
-auto/
 autom4te.cache/
 contrib/archlinux/sipvpn/
 .deps/
 .lint/
 aclocal.m4
 config.*
+compile
 configure
+depcomp
+install-sh
+libtool
+ltmain.sh
+missing
 Makefile
 Makefile.in
 src/Makefile

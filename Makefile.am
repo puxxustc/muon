@@ -1,3 +1,5 @@
+ACLOCAL_AMFLAGS = -I m4
+
 SUBDIRS = src
 
 EXTRA_DIST = man/sipvpn.8 contrib/systemd/sipvpn@.service \

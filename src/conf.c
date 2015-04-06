@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "conf.h"
+#include "crypto.h"
 #include "md5.h"
 
 #ifdef HAVE_CONFIG_H
@@ -154,13 +155,13 @@ int read_conf(const char *file, conf_t *conf)
 			conf->mtu = atoi(value);
 			if (conf->mtu < 68 + IV_LEN)
 			{
-				fprintf(stderr, "mtu too small\n");
+				fprintf(stderr, "line %d: mtu too small\n", line_num);
 				fclose(f);
 				return -1;
 			}
 			else if (conf->mtu > MTU_MAX)
 			{
-				fprintf(stderr, "mtu too large\n");
+				fprintf(stderr, "line %d: mtu too large\n", line_num);
 				fclose(f);
 				return -1;
 			}
@@ -203,6 +204,16 @@ int read_conf(const char *file, conf_t *conf)
 				return -1;
 			}
 		}
+		else if (strcmp(key, "keepalive") == 0)
+		{
+			conf->keepalive = atoi(value);
+			if (conf->keepalive < 0)
+			{
+				fprintf(stderr, "line %d: keepalive must be none negative\n", line_num);
+				fclose(f);
+				return -1;
+			}
+		}
 		else if (strcmp(key, "up") == 0)
 		{
 			my_strcpy(conf->up, value);
@@ -222,6 +233,7 @@ int parse_args(int argc, char **argv, conf_t *conf)
 	const char *conf_file = NULL;
 
 	bzero(conf, sizeof(conf_t));
+	conf->keepalive = 10;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -316,9 +328,19 @@ int parse_args(int argc, char **argv, conf_t *conf)
 	{
 		strcpy(conf->port, "1205");
 	}
+	if (conf->key[0] == '\0')
+	{
+		fprintf(stderr, "key not set in config file\n");
+		return -1;
+	}
 	if (conf->tunif[0] == '\0')
 	{
 		strcpy(conf->tunif, "vpn0");
+	}
+	if (conf->mtu == 0)
+	{
+		fprintf(stderr, "mtu not set in config file\n");
+		return -1;
 	}
 	if (conf->address[0] == '\0')
 	{
@@ -332,16 +354,6 @@ int parse_args(int argc, char **argv, conf_t *conf)
 	if (conf->nat[0] == '\0')
 	{
 		strcpy(conf->nat, "yes");
-	}
-	if (conf->mtu == 0)
-	{
-		fprintf(stderr, "mtu not set in config file\n");
-		return -1;
-	}
-	if (conf->key[0] == '\0')
-	{
-		fprintf(stderr, "key not set in config file\n");
-		return -1;
 	}
 
 	// 设置环境变量
