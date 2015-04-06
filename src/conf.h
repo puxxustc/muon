@@ -39,10 +39,11 @@ typedef struct
 	char user[16];
 	char server[64];
 	char port[16];
-	char key[16];
+	char key[32];
 	char tunif[16];
 	char address[16];
-	char route[16];
+	char route[8];
+	char nat[8];
 	char up[64];
 	char down[64];
 } conf_t;

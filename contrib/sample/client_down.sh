@@ -7,6 +7,7 @@
 #   $mtu
 #   $address
 #   $route
+#   $nat
 
 addr=${address%/*}
 subnet=${address%.*}.0/${address#*/}

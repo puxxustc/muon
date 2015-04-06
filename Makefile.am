@@ -10,7 +10,7 @@ EXTRA_DIST = man/sipvpn.8 contrib/systemd/sipvpn@.service \
 
 man_MANS = man/sipvpn.8
 
-confdir=$(sysconfdir)/sipvpn
+confdir=$(sysconfdir)/sipvpn/examples
 conf_DATA=contrib/sample/client.conf \
           contrib/sample/server.conf
 

@@ -186,6 +186,23 @@ int read_conf(const char *file, conf_t *conf)
 				return -1;
 			}
 		}
+		else if (strcmp(key, "nat") == 0)
+		{
+			if (strcmp(value, "yes") == 0)
+			{
+				strcpy(conf->nat, "yes");
+			}
+			else if (strcmp(value, "no") == 0)
+			{
+				strcpy(conf->nat, "no");
+			}
+			else
+			{
+				fprintf(stderr, "line %d: nat must be yes/no\n", line_num);
+				fclose(f);
+				return -1;
+			}
+		}
 		else if (strcmp(key, "up") == 0)
 		{
 			my_strcpy(conf->up, value);
@@ -312,6 +329,10 @@ int parse_args(int argc, char **argv, conf_t *conf)
 	{
 		strcpy(conf->route, "yes");
 	}
+	if (conf->nat[0] == '\0')
+	{
+		strcpy(conf->nat, "yes");
+	}
 	if (conf->mtu == 0)
 	{
 		fprintf(stderr, "mtu not set in config file\n");
@@ -332,6 +353,7 @@ int parse_args(int argc, char **argv, conf_t *conf)
 	setenv("mtu", mtu, 1);
 	setenv("address", conf->address, 1);
 	setenv("route", conf->route, 1);
+	setenv("nat", conf->nat, 1);
 
 	return 0;
 }
