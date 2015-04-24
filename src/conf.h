@@ -20,6 +20,10 @@
 #ifndef CONF_H
 #define CONF_H
 
+#ifdef HAVE_CONFIG_H
+#  include "config.h"
+#endif
+
 #define MTU_MAX 9000
 
 typedef enum
@@ -44,6 +48,9 @@ typedef struct
 	char key[16];
 	char tunif[16];
 	char address[16];
+#ifdef TARGET_DARWIN
+	char peer[16];
+#endif
 } conf_t;
 
 extern int parse_args(int argc, char **argv, conf_t *conf);

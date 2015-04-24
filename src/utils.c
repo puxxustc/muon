@@ -122,30 +122,52 @@ int daemonize(const char *pidfile, const char *logfile)
 	return 0;
 }
 
+#ifdef TARGET_LINUX
 int setup_nic(const char *tunif, int mtu, const char *address)
 {
 	char cmd[128];
 	int r;
-	sprintf(cmd, "/usr/bin/sh -c \'ip link set %s up\'", tunif);
+
+	sprintf(cmd, "/bin/sh -c \'ip link set %s up\'", tunif);
 	r = system(cmd);
 	if (r != 0)
 	{
 		return r;
 	}
-	sprintf(cmd, "/usr/bin/sh -c \'ip link set %s mtu %d\'", tunif, mtu);
+	sprintf(cmd, "/bin/sh -c \'ip link set %s mtu %d\'", tunif, mtu);
 	r = system(cmd);
 	if (r != 0)
 	{
 		return r;
 	}
-	sprintf(cmd, "/usr/bin/sh -c \'ip addr add %s dev %s\'", address, tunif);
+	sprintf(cmd, "/bin/sh -c \'ip addr add %s dev %s\'", address, tunif);
 	r = system(cmd);
 	if (r != 0)
 	{
 		return r;
 	}
+
 	return 0;
 }
+#endif
+
+#ifdef TARGET_DARWIN
+int setup_nic(const char *tunif, int mtu, const char *address, const char *peer)
+{
+	char cmd[128];
+	int r;
+
+	sprintf(cmd, "/bin/sh -c \'ifconfig %s %s %s mtu %d up\'", tunif,
+		    address, peer, mtu);
+	r = system(cmd);
+	if (r != 0)
+	{
+		return r;
+	}
+
+	return 0;
+}
+#endif
 
 int setup_route(const char *tunif, const char *server)
 {
@@ -160,6 +182,7 @@ int setup_route(const char *tunif, const char *server)
 	{
 		return -1;
 	}
+
 	if (res->ai_addr->sa_family == AF_INET)
 	{
 		char cmd[128];
@@ -175,7 +198,12 @@ int setup_route(const char *tunif, const char *server)
 				sprintf(subnet, "%u.%u.%u.%u/%d", start >> 24, (start >> 16) & 0xff, (start >> 8) & 0xff,
 				        start & 0xff, mask);
 				start += (1U << (32 - mask));
-				sprintf(cmd, "/usr/bin/sh -c \'ip route add %s dev %s table 100\'", subnet, tunif);
+#ifdef TARGET_LINUX
+				sprintf(cmd, "/bin/sh -c \'ip route add %s dev %s\'", subnet, tunif);
+#endif
+#ifdef TARGET_DARWIN
+				sprintf(cmd, "/bin/sh -c \'route add %s -interface %s >/dev/null\'", subnet, tunif);
+#endif
 				r = system(cmd);
 				if (r != 0)
 				{
@@ -196,7 +224,12 @@ int setup_route(const char *tunif, const char *server)
 				end -= (1U << (32 - mask));
 				sprintf(subnet, "%u.%u.%u.%u/%d", (end + 1) >> 24, ((end + 1) >> 16) & 0xff, 
 				        ((end + 1) >> 8) & 0xff, (end + 1) & 0xff, mask);
-				sprintf(cmd, "/usr/bin/sh -c \'ip route add %s dev %s table 100\'", subnet, tunif);
+#ifdef TARGET_LINUX
+				sprintf(cmd, "/bin/sh -c \'ip route add %s dev %s\'", subnet, tunif);
+#endif
+#ifdef TARGET_DARWIN
+				sprintf(cmd, "/bin/sh -c \'route add %s -interface %s >/dev/null\'", subnet, tunif);
+#endif
 				r = system(cmd);
 				if (r != 0)
 				{
@@ -213,47 +246,49 @@ int setup_route(const char *tunif, const char *server)
 	{
 
 	}
+
 	freeaddrinfo(res);
 	return 0;
 }
 
-int setup_nat(const char *tunif, int on)
+#ifdef TARGET_LINUX
+int setup_nat(const char *address, int on)
 {
 	char cmd[128];
 	int r;
 	if (on)
 	{
-		strcpy(cmd, "/usr/bin/sh -c \'sysctl -w net.ipv4.ip_forward=1 >/dev/null\'");
+		strcpy(cmd, "/bin/sh -c \'sysctl -w net.ipv4.ip_forward=1 >/dev/null\'");
 		r = system(cmd);
 		if (r != 0)
 		{
 			return r;
 		}
-		sprintf(cmd, "/usr/bin/sh -c \'iptables -t nat -A POSTROUTING -o %s -j MASQUERADE\'", tunif);
+		sprintf(cmd, "/bin/sh -c \'iptables -t nat -A POSTROUTING -s %s -j MASQUERADE\'", address);
 		r = system(cmd);
 		if (r != 0)
 		{
 			return r;
 		}
-		sprintf(cmd, "/usr/bin/sh -c \'iptables -A FORWARD -o %s -j ACCEPT\'", tunif);
+		sprintf(cmd, "/bin/sh -c \'iptables -A FORWARD -s %s -j ACCEPT\'", address);
 		r = system(cmd);
 		if (r != 0)
 		{
 			return r;
 		}
-		sprintf(cmd, "/usr/bin/sh -c \'iptables -A FORWARD -i %s -j ACCEPT\'", tunif);
+		sprintf(cmd, "/bin/sh -c \'iptables -A FORWARD -d %s -j ACCEPT\'", address);
 		r = system(cmd);
 		if (r != 0)
 		{
 			return r;
 		}
-		sprintf(cmd, "iptables -t mangle -A FORWARD -o %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu", tunif);
+		sprintf(cmd, "/bin/sh -c \'iptables -t mangle -A FORWARD -s %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\'", address);
 		r = system(cmd);
 		if (r != 0)
 		{
 			return r;
 		}
-		sprintf(cmd, "iptables -t mangle -A FORWARD -i %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu", tunif);
+		sprintf(cmd, "/bin/sh -c \'iptables -t mangle -A FORWARD -d %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\'", address);
 		r = system(cmd);
 		if (r != 0)
 		{
@@ -263,38 +298,38 @@ int setup_nat(const char *tunif, int on)
 	else
 	{
 		/*
-		strcpy(cmd, "/usr/bin/sh -c \'sysctl -w net.ipv4.ip_forward=0\'");
+		strcpy(cmd, "/bin/sh -c \'sysctl -w net.ipv4.ip_forward=0\'");
 		r = system(cmd);
 		if (r != 0)
 		{
 			return r;
 		}
 		*/
-		sprintf(cmd, "/usr/bin/sh -c \'iptables -t nat -D POSTROUTING -o %s -j MASQUERADE\'", tunif);
+		sprintf(cmd, "/bin/sh -c \'iptables -t nat -D POSTROUTING -s %s -j MASQUERADE\'", address);
 		r = system(cmd);
 		if (r != 0)
 		{
 			return r;
 		}
-		sprintf(cmd, "/usr/bin/sh -c \'iptables -D FORWARD -o %s -j ACCEPT\'", tunif);
+		sprintf(cmd, "/bin/sh -c \'iptables -D FORWARD -s %s -j ACCEPT\'", address);
 		r = system(cmd);
 		if (r != 0)
 		{
 			return r;
 		}
-		sprintf(cmd, "/usr/bin/sh -c \'iptables -D FORWARD -i %s -j ACCEPT\'", tunif);
+		sprintf(cmd, "/bin/sh -c \'iptables -D FORWARD -d %s -j ACCEPT\'", address);
 		r = system(cmd);
 		if (r != 0)
 		{
 			return r;
 		}
-		sprintf(cmd, "iptables -t mangle -D FORWARD -o %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu", tunif);
+		sprintf(cmd, "/bin/sh -c \'iptables -t mangle -D FORWARD -s %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\'", address);
 		r = system(cmd);
 		if (r != 0)
 		{
 			return r;
 		}
-		sprintf(cmd, "iptables -t mangle -D FORWARD -i %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu", tunif);
+		sprintf(cmd, "/bin/sh -c \'iptables -t mangle -D FORWARD -d %s -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu\'", address);
 		r = system(cmd);
 		if (r != 0)
 		{
@@ -303,3 +338,4 @@ int setup_nat(const char *tunif, int on)
 	}
 	return 0;
 }
+#endif

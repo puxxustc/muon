@@ -9,32 +9,48 @@
 
 ## Build ##
 
-1. configure and make
+### 1. Linux ###
 
-	```bash
-	autoreconf -if
-	./configure --prefix=/usr --sysconfdir=/etc
-	make
-	```
+```bash
+autoreconf -if
+./configure --prefix=/usr --sysconfdir=/etc
+make
+sudo make install
+```
 
-2. install
+### 2. OS X ###
 
-	```bash
-	sudo make install
-	```
+use homebrew to install autoconf, automake, libtool:
 
-## Cross compile ##
+```bash
+brew install autoconf automake libtool
+```
 
-1. setup cross compile tool chain
+build:
 
-2. build
+```bash
+autoreconf -if
+./configure --prefix=/usr --sysconfdir=/etc
+make
+sudo make install
+```
 
-	```bash
-	autoreconf -if
-	./configure --host=arm-unknown-linux-gnueabihf \
-	    --prefix=/usr --sysconfdir=/etc
-	make
-	```
+### 3. Cross compile ###
+
+setup cross compile tool chain:
+
+```bash
+export PATH="$PATH:/pato/to/cross/compile/toolchain/"
+```
+
+build:
+
+```bash
+autoreconf -if
+./configure --host=arm-unknown-linux-gnueabihf \
+    --prefix=/usr --sysconfdir=/etc
+make
+```
 
 ## Usage ##
 

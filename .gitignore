@@ -24,6 +24,7 @@ depcomp
 install-sh
 libtool
 ltmain.sh
+m4
 missing
 src/Makefile
 src/Makefile.in

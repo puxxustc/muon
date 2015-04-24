@@ -20,11 +20,20 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#ifdef HAVE_CONFIG_H
+#  include "config.h"
+#endif
+
 extern int setnonblock(int fd);
 extern int runas(const char *user);
 extern int daemonize(const char *pidfile, const char *logfile);
-extern int setup_nic(const char *tunif, int mtu, const char *address);
 extern int setup_route(const char *tunif, const char *server);
-extern int setup_nat(const char *tunif, int on);
+#ifdef TARGET_LINUX
+extern int setup_nic(const char *tunif, int mtu, const char *address);
+extern int setup_nat(const char *address, int on);
+#endif
+#ifdef TARGET_DARWIN
+extern int setup_nic(const char *tunif, int mtu, const char *address, const char *peer);
+#endif
 
 #endif // UTILS_H

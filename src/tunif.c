@@ -19,13 +19,27 @@
 
 #include <fcntl.h>
 #include <sys/socket.h>
-#include <linux/if.h>
-#include <linux/if_tun.h>
+#include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include "tunif.h"
 
+#ifdef TARGET_LINUX
+#  include <linux/if.h>
+#  include <linux/if_tun.h>
+#endif
+
+#ifdef TARGET_DARWIN
+#  include <sys/kern_control.h>
+#  include <net/if_utun.h>
+#  include <sys/sys_domain.h>
+#  include <netinet/ip.h>
+#  include <sys/uio.h>
+#endif
+
+#ifdef TARGET_LINUX
 int tun_new(const char *dev)
 {
 	struct ifreq ifr;
@@ -52,6 +66,106 @@ int tun_new(const char *dev)
 	}
 	return fd;
 }
+#endif
+
+#ifdef TARGET_DARWIN
+int tun_new(const char *dev)
+{
+	struct ctl_info ctlInfo;
+	struct sockaddr_ctl sc;
+	int fd;
+	int utunnum;
+
+	if (sscanf(dev, "utun%d", &utunnum) != 1)
+	{
+		return -1;
+	}
+
+	memset(&ctlInfo, 0, sizeof(ctlInfo));
+	if (strlcpy(ctlInfo.ctl_name, UTUN_CONTROL_NAME, sizeof(ctlInfo.ctl_name)) >=
+	    sizeof(ctlInfo.ctl_name))
+	{
+		return -1;
+	}
+
+	fd = socket(PF_SYSTEM, SOCK_DGRAM, SYSPROTO_CONTROL);
+
+	if (fd == -1)
+	{
+		return -1;
+	}
+
+	if (ioctl(fd, CTLIOCGINFO, &ctlInfo) == -1)
+	{
+		close(fd);
+		return -1;
+	}
+
+	sc.sc_id = ctlInfo.ctl_id;
+	sc.sc_len = sizeof(sc);
+	sc.sc_family = AF_SYSTEM;
+	sc.ss_sysaddr = AF_SYS_CONTROL;
+	sc.sc_unit = utunnum + 1;
+
+	if (connect(fd, (struct sockaddr *) &sc, sizeof(sc)) == -1)
+	{
+		close(fd);
+		return -1;
+	}
+
+	return fd;
+}
+
+static inline int utun_modified_len(int len)
+{
+	if (len > 0)
+	{
+		return (len > (int)sizeof (uint32_t)) ? len - sizeof (uint32_t) : 0;
+	}
+	else
+	{
+		return len;
+	}
+}
+
+ssize_t tun_read(int tun, void *buf, size_t len)
+{
+	uint32_t type;
+	struct iovec iv[2];
+
+	iv[0].iov_base = &type;
+	iv[0].iov_len = sizeof(type);
+	iv[1].iov_base = buf;
+	iv[1].iov_len = len;
+
+	return utun_modified_len(readv(tun, iv, 2));
+}
+
+ssize_t tun_write(int tun, void *buf, size_t len)
+{
+	uint32_t type;
+	struct iovec iv[2];
+	struct ip *iph;
+
+	iph = (struct ip *)buf;
+
+	if (iph->ip_v == 6)
+	{
+		type = htonl(AF_INET6);
+	}
+	else
+	{
+		type = htonl(AF_INET);
+	}
+
+	iv[0].iov_base = &type;
+	iv[0].iov_len = sizeof(type);
+	iv[1].iov_base = buf;
+	iv[1].iov_len = len;
+
+	return utun_modified_len(writev(tun, iv, 2));
+}
+#endif
 
 void tun_close(int tun)
 {

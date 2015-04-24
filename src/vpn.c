@@ -35,6 +35,10 @@
 #include "utils.h"
 #include "vpn.h"
 
+#ifdef HAVE_CONFIG_H
+#  include "config.h"
+#endif
+
 static const conf_t *conf;
 
 static volatile int running;
@@ -108,10 +112,19 @@ int vpn_init(const conf_t *config)
 	LOG("using tun device: %s", conf->tunif);
 
 	// 配置 IP 地址
+#ifdef TARGET_LINUX
 	if (setup_nic(conf->tunif, conf->mtu, conf->address) != 0)
 	{
 		LOG("failed to add address on tun device");
 	}
+#endif
+#ifdef TARGET_DARWIN
+	if (setup_nic(conf->tunif, conf->mtu, conf->address, conf->peer) != 0)
+	{
+		LOG("failed to add address on tun device");
+	}
+#endif
+
 	if (conf->mode == client)
 	{
 		if (conf->route)
@@ -125,14 +138,20 @@ int vpn_init(const conf_t *config)
 	}
 	else
 	{
+#ifdef TARGET_DARWIN
+		LOG("server mode is not supported on Mac OS X");
+		return -1;
+#endif
+#ifdef TARGET_LINUX
 		if (conf->nat)
 		{
 			// 配置 NAT
-			if (setup_nat(conf->tunif, 1))
+			if (setup_nat(conf->address, 1))
 			{
-				LOG("failed to setup NAT");
+				LOG("failed to turn on NAT");
 			}
 		}
+#endif
 	}
 
 	// drop root privilege
@@ -335,13 +354,15 @@ int vpn_run(void)
 	}
 
 	// 关闭 NAT
+#ifdef TARGET_LINUX
 	if ((conf->mode == server) && (conf->nat))
 	{
-		if (setup_nat(conf->tunif, 0))
+		if (setup_nat(conf->address, 0))
 		{
-			LOG("failed to setup NAT");
+			LOG("failed to turn off NAT");
 		}
 	}
+#endif
 
 	// 关闭 tun 设备
 	tun_close(tun);

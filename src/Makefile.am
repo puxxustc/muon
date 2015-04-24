@@ -1,4 +1,4 @@
-AM_CFLAGS = -pipe -W -Wall -Wno-unused-parameter -fno-strict-aliasing
+AM_CFLAGS = -pipe -W -Wall -fno-strict-aliasing
 
 bin_PROGRAMS = sipvpn
 

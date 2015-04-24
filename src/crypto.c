@@ -24,6 +24,10 @@
 #include "crypto.h"
 #include "md5.h"
 
+#ifdef HAVE_CONFIG_H
+#  include "config.h"
+#endif
+
 #define SWAP(x, y) do {register uint8_t tmp = (x); (x) = (y); (y) = tmp; } while (0)
 
 static void rc4(void *stream, size_t len, const void *key)
@@ -40,7 +44,7 @@ static void rc4(void *stream, size_t len, const void *key)
 		SWAP(s[i], s[j]);
 	}
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(TARGET_LINUX)
 #  if defined(__amd64__) || defined(__x86_64__)
 #    define RC4_ASM 1
 	assert(((uintptr_t)stream & 0x07) == 0);

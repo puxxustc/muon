@@ -31,6 +31,20 @@ AM_CONDITIONAL(DEBUG, test x"$debug" = x"true")
 AC_HEADER_ASSERT
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h pwd.h stddef.h stdint.h stdio.h stdlib.h string.h sys/ioctl.h sys/select.h sys/socket.h sys/stat.h unistd.h])
 
+# Check build target
+case "$host" in
+    *-*-linux*)
+        AC_DEFINE([TARGET_LINUX], [1], [Build for Linux])
+        AC_CHECK_HEADER([linux/if_tun.h])
+        ;;
+    *-*-darwin*)
+        AC_DEFINE([TARGET_DARWIN], [1], [Build OS X])
+        AC_CHECK_HEADER([net/if_utun.h])
+        ;;
+    *)
+        AC_DEFINE([TARGET_UNKNOWN], ["$host"], [Unknown build target])
+esac
+
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
 AC_TYPE_PID_T

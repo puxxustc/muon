@@ -170,6 +170,12 @@ int read_conf(const char *file, conf_t *conf)
 		{
 			my_strcpy(conf->address, value);
 		}
+#ifdef TARGET_DARWIN
+		else if (strcmp(key, "peer") == 0)
+		{
+			my_strcpy(conf->peer, value);
+		}
+#endif
 		else if (strcmp(key, "route") == 0)
 		{
 			if (strcmp(value, "yes") == 0)
@@ -325,10 +331,18 @@ int parse_args(int argc, char **argv, conf_t *conf)
 		fprintf(stderr, "key not set in config file\n");
 		return -1;
 	}
+#ifdef TARGET_LINUX
 	if (conf->tunif[0] == '\0')
 	{
 		strcpy(conf->tunif, "vpn0");
 	}
+#endif
+#ifdef TARGET_DARWIN
+	if (conf->tunif[0] == '\0')
+	{
+		strcpy(conf->tunif, "utun0");
+	}
+#endif
 	if (conf->mtu == 0)
 	{
 		fprintf(stderr, "mtu not set in config file\n");
@@ -339,6 +353,13 @@ int parse_args(int argc, char **argv, conf_t *conf)
 		fprintf(stderr, "address not set in config file\n");
 		return -1;
 	}
+#ifdef TARGET_DARWIN
+	if (conf->peer[0] == '\0')
+	{
+		fprintf(stderr, "peer address not set in config file\n");
+		return -1;
+	}
+#endif
 
 	return 0;
 }
