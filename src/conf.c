@@ -174,11 +174,11 @@ int read_conf(const char *file, conf_t *conf)
 		{
 			if (strcmp(value, "yes") == 0)
 			{
-				strcpy(conf->route, "yes");
+				conf->route = 1;
 			}
 			else if (strcmp(value, "no") == 0)
 			{
-				strcpy(conf->route, "no");
+				conf->route = 0;
 			}
 			else
 			{
@@ -191,11 +191,11 @@ int read_conf(const char *file, conf_t *conf)
 		{
 			if (strcmp(value, "yes") == 0)
 			{
-				strcpy(conf->nat, "yes");
+				conf->nat = 1;
 			}
 			else if (strcmp(value, "no") == 0)
 			{
-				strcpy(conf->nat, "no");
+				conf->nat = 1;
 			}
 			else
 			{
@@ -213,14 +213,6 @@ int read_conf(const char *file, conf_t *conf)
 				fclose(f);
 				return -1;
 			}
-		}
-		else if (strcmp(key, "up") == 0)
-		{
-			my_strcpy(conf->up, value);
-		}
-		else if (strcmp(key, "down") == 0)
-		{
-			my_strcpy(conf->down, value);
 		}
 	}
 	fclose(f);
@@ -347,25 +339,6 @@ int parse_args(int argc, char **argv, conf_t *conf)
 		fprintf(stderr, "address not set in config file\n");
 		return -1;
 	}
-	if (conf->route[0] == '\0')
-	{
-		strcpy(conf->route, "yes");
-	}
-	if (conf->nat[0] == '\0')
-	{
-		strcpy(conf->nat, "yes");
-	}
-
-	// 设置环境变量
-	setenv("server", conf->server, 1);
-	setenv("port", conf->port, 1);
-	setenv("tunif", conf->tunif, 1);
-	char mtu[8];
-	sprintf(mtu, "%d", conf->mtu);
-	setenv("mtu", mtu, 1);
-	setenv("address", conf->address, 1);
-	setenv("route", conf->route, 1);
-	setenv("nat", conf->nat, 1);
 
 	return 0;
 }

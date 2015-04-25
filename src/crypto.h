@@ -24,7 +24,7 @@
 
 #define IV_LEN 16
 
-extern void crypto_set_key(const void *_key);
+extern void crypto_init(const void *_key);
 extern void crypto_encrypt(void *buf, size_t len);
 extern int  crypto_decrypt(void *buf, size_t len);
 

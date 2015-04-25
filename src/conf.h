@@ -30,22 +30,20 @@ typedef enum
 
 typedef struct
 {
-	int daemon;
 	vpnmode_t mode;
+	int daemon;
 	int mtu;
 	int keepalive;
+	int route;
+	int nat;
 	char pidfile[64];
 	char logfile[64];
 	char user[16];
 	char server[64];
 	char port[16];
-	char key[32];
+	char key[16];
 	char tunif[16];
 	char address[16];
-	char route[8];
-	char nat[8];
-	char up[64];
-	char down[64];
 } conf_t;
 
 extern int parse_args(int argc, char **argv, conf_t *conf);

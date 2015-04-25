@@ -23,6 +23,8 @@
 extern int setnonblock(int fd);
 extern int runas(const char *user);
 extern int daemonize(const char *pidfile, const char *logfile);
-extern int shell(const char *script);
+extern int setup_nic(const char *tunif, int mtu, const char *address);
+extern int setup_route(const char *tunif, const char *server);
+extern int setup_nat(const char *tunif, int on);
 
 #endif // UTILS_H

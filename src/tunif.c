@@ -26,7 +26,7 @@
 #include <unistd.h>
 #include "tunif.h"
 
-int tun_new(char *dev)
+int tun_new(const char *dev)
 {
 	struct ifreq ifr;
 	int fd, err;
@@ -50,7 +50,6 @@ int tun_new(char *dev)
 	{
 		return err;
 	}
-	strcpy(dev, ifr.ifr_name);
 	return fd;
 }
 

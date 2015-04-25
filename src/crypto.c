@@ -196,7 +196,7 @@ static void rc4(void *stream, size_t len, const void *key)
 
 static char key[32];
 
-void crypto_set_key(const void *_key)
+void crypto_init(const void *_key)
 {
 	memcpy(key + 16, _key, 16);
 }

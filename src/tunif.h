@@ -23,7 +23,7 @@
 #include <stddef.h>
 #include <unistd.h>
 
-extern int tun_new(char *dev);
+extern int tun_new(const char *dev);
 extern void tun_close(int tun);
 #define tun_read read
 #define tun_write write

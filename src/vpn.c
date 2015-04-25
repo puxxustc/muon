@@ -52,14 +52,12 @@ static void heartbeat(void);
 
 int vpn_init(const conf_t *config)
 {
-	char tun_name[32];
-
 	conf = config;
 
 	LOG("starting sipvpn %s", (conf->mode == server) ? "server" : "client");
 
 	// set crypto key
-	crypto_set_key(conf->key);
+	crypto_init(conf->key);
 
 	// 初始化 UDP socket
 	struct addrinfo hints;
@@ -101,31 +99,39 @@ int vpn_init(const conf_t *config)
 	freeaddrinfo(res);
 
 	// 初始化 tun 设备
-	strcpy(tun_name, conf->tunif);
-	tun = tun_new(tun_name);
+	tun = tun_new(conf->tunif);
 	if (tun < 0)
 	{
 		LOG("failed to init tun device");
 		return -1;
 	}
-	if (strcmp(tun_name, conf->tunif) != 0)
-	{
-		setenv("tunif", tun_name, 1);
-	}
-	LOG("using tun device: %s", tun_name);
+	LOG("using tun device: %s", conf->tunif);
 
-	// 执行 up hook
-	if (conf->up[0] != '\0')
+	// 配置 IP 地址
+	if (setup_nic(conf->tunif, conf->mtu, conf->address) != 0)
 	{
-		LOG("executing up hook: %s", conf->up);
-		int r = shell(conf->up);
-		if (r == 0)
+		LOG("failed to add address on tun device");
+	}
+	if (conf->mode == client)
+	{
+		if (conf->route)
 		{
-			LOG("done");
+			// 配置路由表
+			if (setup_route(conf->tunif, conf->server) != 0)
+			{
+				LOG("failed to setup route");
+			}
 		}
-		else
+	}
+	else
+	{
+		if (conf->nat)
 		{
-			LOG("error: %d", r);
+			// 配置 NAT
+			if (setup_nat(conf->tunif, 1))
+			{
+				LOG("failed to setup NAT");
+			}
 		}
 	}
 
@@ -208,7 +214,7 @@ int vpn_run(void)
 
 				// 发送 UDP 包
 				n = sendto(sock, buf, n + IV_LEN, 0,
-				           (struct sockaddr *)&remote.addr, remote.addrlen);
+				           (struct sockaddr *)&(remote.addr), remote.addrlen);
 				if (n <= 0)
 				{
 					if (errno == EAGAIN || errno == EWOULDBLOCK)
@@ -249,7 +255,7 @@ int vpn_run(void)
 				}
 				else
 				{
-					ERROR("sendto");
+					ERROR("recvfrom");
 				}
 			}
 			else if (n == 0)
@@ -328,18 +334,12 @@ int vpn_run(void)
 		}
 	}
 
-	// 执行 down hook
-	if (conf->down[0] != '\0')
+	// 关闭 NAT
+	if ((conf->mode == server) && (conf->nat))
 	{
-		LOG("executing down hook: %s", conf->down);
-		int r = shell(conf->down);
-		if (r == 0)
+		if (setup_nat(conf->tunif, 0))
 		{
-			LOG("done");
-		}
-		else
-		{
-			LOG("error: %d", r);
+			LOG("failed to setup NAT");
 		}
 	}
 
@@ -360,14 +360,14 @@ void vpn_stop(void)
 static void heartbeat(void)
 {
 	srand(time(NULL));
-	int len = rand() % (conf->mtu + IV_LEN);
+	int len = rand() % (conf->mtu - 40) + 40;
 	for (int i = 0; i < len; i++)
 	{
-		buf[i] = (uint8_t)(rand() & 0xff);
+		buf[IV_LEN + i] = (uint8_t)(rand() & 0xff);
 	}
 	buf[IV_LEN] = 0;
 
-	crypto_encrypt(buf, len - IV_LEN);
+	crypto_encrypt(buf, len);
 	if (remote.addrlen != 0)
 	{
 		sendto(sock, buf, len, 0, (struct sockaddr *)&(remote.addr),

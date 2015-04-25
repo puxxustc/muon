@@ -1,7 +1,7 @@
 # Maintainer:  Xiaoxiao Pu <i@xiaoxiao.im>
 
 pkgname=sipvpn-git
-pkgver=r4
+pkgver=r5
 pkgrel=1
 pkgdesc="Simple stateless VPN"
 arch=('i686' 'x86_64')
@@ -12,10 +12,6 @@ makedepends=('git')
 provides=('sipvpn')
 source=("git+https://github.com/XiaoxiaoPu/sipvpn.git")
 sha256sums=('SKIP')
-backup=('etc/sipvpn/hooks/client_down.sh'
-        'etc/sipvpn/hooks/client_up.sh'
-        'etc/sipvpn/hooks/server_down.sh'
-        'etc/sipvpn/hooks/server_up.sh')
 
 pkgver() {
 	cd "${srcdir}/sipvpn"
@@ -32,5 +28,4 @@ build() {
 package() {
 	cd "${srcdir}/sipvpn"
 	make DESTDIR="${pkgdir}/" install
-	chmod 755 ${pkgdir}/etc/sipvpn/hooks/*
 }

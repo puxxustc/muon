@@ -21,7 +21,6 @@
 
 	```bash
 	sudo make install
-	sudo chmod +x /etc/sipvpn/hooks/*
 	```
 
 ## Cross compile ##

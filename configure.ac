@@ -26,10 +26,6 @@ AC_ARG_ENABLE(
     [AS_HELP_STRING([--enable-debug], [build with additional debugging code])],
     [CFLAGS="$CFLAGS -g -DDEBUG -O0"])
 AM_CONDITIONAL(DEBUG, test x"$debug" = x"true")
-AC_ARG_ENABLE(
-    [coverage],
-    [AS_HELP_STRING([--enable-coverage], [enable coverage analysis])],
-    [CFLAGS="$CFLAGS -fprofile-arcs -ftest-coverage"])
 
 # Checks for header files.
 AC_HEADER_ASSERT
