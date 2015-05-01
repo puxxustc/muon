@@ -113,13 +113,13 @@ int vpn_init(const conf_t *config)
 
 	// 配置 IP 地址
 #ifdef TARGET_LINUX
-	if (setup_nic(conf->tunif, conf->mtu, conf->address) != 0)
+	if (ifconfig(conf->tunif, conf->mtu, conf->address) != 0)
 	{
 		LOG("failed to add address on tun device");
 	}
 #endif
 #ifdef TARGET_DARWIN
-	if (setup_nic(conf->tunif, conf->mtu, conf->address, conf->peer) != 0)
+	if (ifconfig(conf->tunif, conf->mtu, conf->address, conf->peer) != 0)
 	{
 		LOG("failed to add address on tun device");
 	}
@@ -130,7 +130,7 @@ int vpn_init(const conf_t *config)
 		if (conf->route)
 		{
 			// 配置路由表
-			if (setup_route(conf->tunif, conf->server) != 0)
+			if (route(conf->tunif, conf->server) != 0)
 			{
 				LOG("failed to setup route");
 			}
@@ -146,7 +146,7 @@ int vpn_init(const conf_t *config)
 		if (conf->nat)
 		{
 			// 配置 NAT
-			if (setup_nat(conf->address, 1))
+			if (nat(conf->address, 1))
 			{
 				LOG("failed to turn on NAT");
 			}
@@ -189,14 +189,14 @@ int vpn_run(void)
 		{
 			r = select((tun>sock?tun:sock) + 1, &readset, NULL, NULL, NULL);
 		}
-		if (r < 0)
+		if (r == 0)
+		{
+			heartbeat();
+		}
+		else if (r < 0)
 		{
 			if (errno == EINTR)
 			{
-				if (conf->keepalive != 0)
-				{
-					heartbeat();
-				}
 				continue;
 			}
 			else
@@ -357,7 +357,7 @@ int vpn_run(void)
 #ifdef TARGET_LINUX
 	if ((conf->mode == server) && (conf->nat))
 	{
-		if (setup_nat(conf->address, 0))
+		if (nat(conf->address, 0))
 		{
 			LOG("failed to turn off NAT");
 		}
@@ -380,18 +380,19 @@ void vpn_stop(void)
 // 发送心跳包
 static void heartbeat(void)
 {
-	srand(time(NULL));
-	int len = rand() % (conf->mtu - 40) + 40;
-	for (int i = 0; i < len; i++)
-	{
-		buf[IV_LEN + i] = (uint8_t)(rand() & 0xff);
-	}
-	buf[IV_LEN] = 0;
-
-	crypto_encrypt(buf, len);
 	if (remote.addrlen != 0)
 	{
-		sendto(sock, buf, len, 0, (struct sockaddr *)&(remote.addr),
+		srand(time(NULL));
+		int len = rand() % (conf->mtu - 40) + 40;
+		for (int i = 0; i < len; i++)
+		{
+			buf[IV_LEN + i] = (uint8_t)(rand() & 0xff);
+		}
+		buf[IV_LEN] = 0;
+
+		crypto_encrypt(buf, len);
+
+		sendto(sock, buf, len + IV_LEN, 0, (struct sockaddr *)&(remote.addr),
 		       remote.addrlen);
 	}
 }
