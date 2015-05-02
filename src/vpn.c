@@ -52,6 +52,8 @@ static struct
 
 static uint8_t buf[IV_LEN + MTU_MAX];
 
+static void tun_cb(void);
+static void udp_cb(void);
 static void heartbeat(void);
 
 int vpn_init(const conf_t *config)
@@ -208,139 +210,12 @@ int vpn_run(void)
 
 		if (FD_ISSET(tun, &readset))
 		{
-			// 从 tun 设备读取 IP 包
-			ssize_t n = tun_read(tun, buf + IV_LEN, conf->mtu);
-			if (n < 0)
-			{
-				if (errno == EAGAIN || errno == EWOULDBLOCK)
-				{
-					// do nothing
-				}
-				else
-				{
-					ERROR("tun_read");
-				}
-			}
-			else if (n == 0)
-			{
-				continue;
-			}
-
-			if (remote.addrlen != 0)
-			{
-				// 加密
-				crypto_encrypt(buf, n);
-
-				// 发送 UDP 包
-				n = sendto(sock, buf, n + IV_LEN, 0,
-				           (struct sockaddr *)&(remote.addr), remote.addrlen);
-				if (n <= 0)
-				{
-					if (errno == EAGAIN || errno == EWOULDBLOCK)
-					{
-						// do nothing
-					}
-					else
-					{
-						ERROR("sendto");
-					}
-				}
-			}
+			tun_cb();
 		}
 
 		if (FD_ISSET(sock, &readset))
 		{
-			// 读取 UDP 包
-			struct sockaddr_storage addr;
-			socklen_t addrlen;
-			ssize_t n;
-			if (conf->mode == client)
-			{
-				// client
-				n = recvfrom(sock, buf, conf->mtu + IV_LEN, 0, NULL, NULL);
-			}
-			else
-			{
-				// server
-				addrlen = sizeof(struct sockaddr_storage);
-				n = recvfrom(sock, buf, conf->mtu + IV_LEN, 0,
-				             (struct sockaddr *)&addr, &addrlen);
-			}
-			if (n < 0)
-			{
-				if (errno == EAGAIN || errno == EWOULDBLOCK)
-				{
-					// do nothing
-				}
-				else
-				{
-					ERROR("recvfrom");
-				}
-			}
-			else if (n == 0)
-			{
-				continue;
-			}
-
-			// 解密
-			if (crypto_decrypt(buf, n) != 0)
-			{
-				if (conf->mode == client)
-				{
-					LOG("invalid packet, drop");
-				}
-				else
-				{
-					char host[INET6_ADDRSTRLEN];
-					char port[8];
-					if (addr.ss_family == AF_INET)
-					{
-						inet_ntop(AF_INET, &(((struct sockaddr_in *)&addr)->sin_addr),
-						          host, INET_ADDRSTRLEN);
-						sprintf(port, "%u", ntohs(((struct sockaddr_in *)&addr)->sin_port));
-					}
-					else
-					{
-						inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)&addr)->sin6_addr),
-						          host, INET6_ADDRSTRLEN);
-						sprintf(port, "%u", ntohs(((struct sockaddr_in6 *)&addr)->sin6_port));
-					}
-					LOG("invalid packet from %s:%s, drop", host, port);
-				}
-			}
-			else
-			{
-				if ((buf[IV_LEN] == 0) && (conf->mode == server))
-				{
-					// server 接收到一个心跳包，回送一个心跳包
-					heartbeat();
-				}
-				else
-				{
-					n = tun_write(tun, buf + IV_LEN, n - IV_LEN);
-					if (n < 0)
-					{
-						if (errno == EAGAIN || errno == EWOULDBLOCK)
-						{
-							// do nothing
-						}
-						else
-						{
-							ERROR("tun_write");
-						}
-					}
-				}
-				// update remote address
-				if (conf->mode == server)
-				{
-					if ((remote.addrlen != addrlen) ||
-					    (memcmp(&(remote.addr), &addr, addrlen) != 0))
-					{
-						memcpy(&(remote.addr), &addr, addrlen);
-						remote.addrlen = addrlen;
-					}
-				}
-			}
+			udp_cb();
 		}
 	}
 
@@ -375,6 +250,119 @@ int vpn_run(void)
 void vpn_stop(void)
 {
 	running = 0;
+}
+
+static void tun_cb(void)
+{
+	// 从 tun 设备读取 IP 包
+	ssize_t n = tun_read(tun, buf + IV_LEN, conf->mtu);
+	if (n <= 0)
+	{
+		if (n < 0)
+		{
+			ERROR("tun_read");
+		}
+		return;
+	}
+
+	if (remote.addrlen != 0)
+	{
+		// 加密
+		crypto_encrypt(buf, n);
+
+		// 发送 UDP 包
+		n = sendto(sock, buf, n + IV_LEN, 0,
+		           (struct sockaddr *)&(remote.addr), remote.addrlen);
+		if (n < 0)
+		{
+			ERROR("sendto");
+		}
+	}
+}
+
+static void udp_cb(void)
+{
+	// 读取 UDP 包
+	struct sockaddr_storage addr;
+	socklen_t addrlen;
+	ssize_t n;
+	if (conf->mode == client)
+	{
+		// client
+		n = recvfrom(sock, buf, conf->mtu + IV_LEN, 0, NULL, NULL);
+	}
+	else
+	{
+		// server
+		addrlen = sizeof(struct sockaddr_storage);
+		n = recvfrom(sock, buf, conf->mtu + IV_LEN, 0,
+		             (struct sockaddr *)&addr, &addrlen);
+	}
+	if (n <= 0)
+	{
+		if (n < 0)
+		{
+			ERROR("recvfrom");
+		}
+		return;
+	}
+
+	// 解密
+	if (crypto_decrypt(buf, n) != 0)
+	{
+		// invalid packet
+		if (conf->mode == client)
+		{
+			LOG("invalid packet, drop");
+		}
+		else
+		{
+			char host[INET6_ADDRSTRLEN];
+			char port[8];
+			if (addr.ss_family == AF_INET)
+			{
+				inet_ntop(AF_INET, &(((struct sockaddr_in *)&addr)->sin_addr),
+				          host, INET_ADDRSTRLEN);
+				sprintf(port, "%u", ntohs(((struct sockaddr_in *)&addr)->sin_port));
+			}
+			else
+			{
+				inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)&addr)->sin6_addr),
+				          host, INET6_ADDRSTRLEN);
+				sprintf(port, "%u", ntohs(((struct sockaddr_in6 *)&addr)->sin6_port));
+			}
+			LOG("invalid packet from %s:%s, drop", host, port);
+		}
+	}
+	else
+	{
+		if (buf[IV_LEN] == 0)
+		{
+			if (conf->mode == server)
+			{
+				// server 接收到一个心跳包，回送一个心跳包
+				heartbeat();
+			}
+		}
+		else
+		{
+			n = tun_write(tun, buf + IV_LEN, n - IV_LEN);
+			if (n < 0)
+			{
+				ERROR("tun_write");
+			}
+		}
+		// update remote address
+		if (conf->mode == server)
+		{
+			if ((remote.addrlen != addrlen) ||
+			    (memcmp(&(remote.addr), &addr, addrlen) != 0))
+			{
+				memcpy(&(remote.addr), &addr, addrlen);
+				remote.addrlen = addrlen;
+			}
+		}
+	}
 }
 
 // 发送心跳包
