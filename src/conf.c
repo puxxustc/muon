@@ -220,6 +220,23 @@ int read_conf(const char *file, conf_t *conf)
 				return -1;
 			}
 		}
+		else if (strcmp(key, "duplicate") == 0)
+		{
+			if (strcmp(value, "yes") == 0)
+			{
+				conf->duplicate = 1;
+			}
+			else if (strcmp(value, "no") == 0)
+			{
+				conf->duplicate = 0;
+			}
+			else
+			{
+				fprintf(stderr, "line %d: duplicate must be yes/no\n", line_num);
+				fclose(f);
+				return -1;
+			}
+		}
 	}
 	fclose(f);
 

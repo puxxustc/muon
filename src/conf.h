@@ -38,6 +38,7 @@ typedef struct
 	int daemon;
 	int mtu;
 	int keepalive;
+	int duplicate;
 	int route;
 	int nat;
 	char pidfile[64];
