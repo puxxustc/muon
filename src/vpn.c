@@ -115,13 +115,13 @@ int vpn_init(const conf_t *config)
 
 	// 配置 IP 地址
 #ifdef TARGET_LINUX
-	if (ifconfig(conf->tunif, conf->mtu, conf->address) != 0)
+	if (ifconfig(conf->tunif, conf->mtu, conf->address, conf->address6) != 0)
 	{
 		LOG("failed to add address on tun device");
 	}
 #endif
 #ifdef TARGET_DARWIN
-	if (ifconfig(conf->tunif, conf->mtu, conf->address, conf->peer) != 0)
+	if (ifconfig(conf->tunif, conf->mtu, conf->address, conf->peer, conf->address6) != 0)
 	{
 		LOG("failed to add address on tun device");
 	}
@@ -132,7 +132,7 @@ int vpn_init(const conf_t *config)
 		if (conf->route)
 		{
 			// 配置路由表
-			if (route(conf->tunif, conf->server) != 0)
+			if (route(conf->tunif, conf->server, conf->address[0], conf->address6[0]) != 0)
 			{
 				LOG("failed to setup route");
 			}
@@ -145,7 +145,7 @@ int vpn_init(const conf_t *config)
 		return -1;
 #endif
 #ifdef TARGET_LINUX
-		if (conf->nat)
+		if ((conf->nat) && (conf->address[0] != '\0'))
 		{
 			// 配置 NAT
 			if (nat(conf->address, 1))

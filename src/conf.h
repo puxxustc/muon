@@ -49,6 +49,7 @@ typedef struct
 	char key[16];
 	char tunif[16];
 	char address[16];
+	char address6[64];
 #ifdef TARGET_DARWIN
 	char peer[16];
 #endif

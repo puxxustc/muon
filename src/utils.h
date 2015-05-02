@@ -27,13 +27,13 @@
 extern int setnonblock(int fd);
 extern int runas(const char *user);
 extern int daemonize(const char *pidfile, const char *logfile);
-extern int route(const char *tunif, const char *server);
+extern int route(const char *tunif, const char *server, int ipv4, int ipv6);
 #ifdef TARGET_LINUX
-extern int ifconfig(const char *tunif, int mtu, const char *address);
+extern int ifconfig(const char *tunif, int mtu, const char *address, const char *address6);
 extern int nat(const char *address, int on);
 #endif
 #ifdef TARGET_DARWIN
-extern int ifconfig(const char *tunif, int mtu, const char *address, const char *peer);
+extern int ifconfig(const char *tunif, int mtu, const char *address, const char *peer, const char *address6);
 #endif
 
 #endif // UTILS_H

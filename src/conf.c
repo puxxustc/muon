@@ -170,6 +170,10 @@ int read_conf(const char *file, conf_t *conf)
 		{
 			my_strcpy(conf->address, value);
 		}
+		else if (strcmp(key, "address6") == 0)
+		{
+			my_strcpy(conf->address6, value);
+		}
 #ifdef TARGET_DARWIN
 		else if (strcmp(key, "peer") == 0)
 		{
@@ -365,13 +369,13 @@ int parse_args(int argc, char **argv, conf_t *conf)
 		fprintf(stderr, "mtu not set in config file\n");
 		return -1;
 	}
-	if (conf->address[0] == '\0')
+	if ((conf->address[0] == '\0') && (conf->address6[0] == '\0'))
 	{
-		fprintf(stderr, "address not set in config file\n");
+		fprintf(stderr, "address/address6 not set in config file\n");
 		return -1;
 	}
 #ifdef TARGET_DARWIN
-	if (conf->peer[0] == '\0')
+	if ((conf->address[0] != '\0') && (conf->peer[0] == '\0'))
 	{
 		fprintf(stderr, "peer address not set in config file\n");
 		return -1;

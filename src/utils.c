@@ -125,7 +125,7 @@ int daemonize(const char *pidfile, const char *logfile)
 #define shell(cmd) do {int r = system(cmd); if (r != 0) {return r;}} while (0)
 
 #ifdef TARGET_LINUX
-int ifconfig(const char *tunif, int mtu, const char *address)
+int ifconfig(const char *tunif, int mtu, const char *address, const char *address6)
 {
 	char cmd[128];
 
@@ -133,96 +133,126 @@ int ifconfig(const char *tunif, int mtu, const char *address)
 	shell(cmd);
 	sprintf(cmd, "/bin/sh -c \'ip link set %s mtu %d\'", tunif, mtu);
 	shell(cmd);
-	sprintf(cmd, "/bin/sh -c \'ip addr add %s dev %s\'", address, tunif);
-	shell(cmd);
+	if (address[0] != '\0')
+	{
+		sprintf(cmd, "/bin/sh -c \'ip addr add %s dev %s\'", address, tunif);
+		shell(cmd);
+	}
+	if (address6[0] != '\0')
+	{
+		sprintf(cmd, "/bin/sh -c \'ip -6 addr add %s dev %s\'", address6, tunif);
+		shell(cmd);
+	}
 
 	return 0;
 }
 #endif
 
 #ifdef TARGET_DARWIN
-int ifconfig(const char *tunif, int mtu, const char *address, const char *peer)
+int ifconfig(const char *tunif, int mtu, const char *address, const char *peer, const char *address6)
 {
 	char cmd[128];
 
-	sprintf(cmd, "/bin/sh -c \'ifconfig %s %s %s mtu %d up\'", tunif,
-		    address, peer, mtu);
+	sprintf(cmd, "/bin/sh -c \'ifconfig %s up\'", tunif);
 	shell(cmd);
+	sprintf(cmd, "/bin/sh -c \'ifconfig %s mtu %d\'", tunif, mtu);
+	shell(cmd);
+	if (address[0] != '\0')
+	{
+		sprintf(cmd, "/bin/sh -c \'ifconfig %s %s %s\'", tunif, address, peer);
+		shell(cmd);
+	}
+	if (address6[0] != '\0')
+	{
+		sprintf(cmd, "/bin/sh -c \'ifconfig %s inet6 %s\'", tunif, address6);
+		shell(cmd);
+	}
 
 	return 0;
 }
 #endif
 
-int route(const char *tunif, const char *server)
+int route(const char *tunif, const char *server, int ipv4, int ipv6)
 {
-	// 解析服务器地址
-	struct addrinfo hints;
-	struct addrinfo *res;
-	bzero(&hints, sizeof(struct addrinfo));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_DGRAM;
-	hints.ai_protocol = IPPROTO_UDP;
-	if (getaddrinfo(server, "0", &hints, &res) != 0)
-	{
-		return -1;
-	}
+	char cmd[128];
 
-	if (res->ai_addr->sa_family == AF_INET)
+	if (ipv4)
 	{
-		char cmd[128];
-		char subnet[16];
-		uint32_t ip = ntohl(((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr);
-		uint32_t start = 0U;
-		int mask = 1;
-		while (mask <= 32)
+		// 解析服务器地址
+		struct addrinfo hints;
+		struct addrinfo *res;
+		bzero(&hints, sizeof(struct addrinfo));
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_socktype = SOCK_DGRAM;
+		hints.ai_protocol = IPPROTO_UDP;
+		if (getaddrinfo(server, "0", &hints, &res) != 0)
 		{
-			if ((uint64_t)start + (1U << (32 - mask)) - 1 < ip)
+			return -1;
+		}
+
+		if (res->ai_addr->sa_family == AF_INET)
+		{
+			char subnet[16];
+			uint32_t ip = ntohl(((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr);
+			uint32_t start = 0U;
+			int mask = 1;
+			while (mask <= 32)
 			{
-				sprintf(subnet, "%u.%u.%u.%u/%d", start >> 24, (start >> 16) & 0xff, (start >> 8) & 0xff,
-				        start & 0xff, mask);
-				start += (1U << (32 - mask));
+				if ((uint64_t)start + (1U << (32 - mask)) - 1 < ip)
+				{
+					sprintf(subnet, "%u.%u.%u.%u/%d", start >> 24, (start >> 16) & 0xff, (start >> 8) & 0xff,
+					        start & 0xff, mask);
+					start += (1U << (32 - mask));
 #ifdef TARGET_LINUX
-				sprintf(cmd, "/bin/sh -c \'ip route add %s dev %s\'", subnet, tunif);
+					sprintf(cmd, "/bin/sh -c \'ip route add %s dev %s\'", subnet, tunif);
 #endif
 #ifdef TARGET_DARWIN
-				sprintf(cmd, "/bin/sh -c \'route add %s -interface %s >/dev/null\'", subnet, tunif);
+					sprintf(cmd, "/bin/sh -c \'route add %s -interface %s >/dev/null\'", subnet, tunif);
 #endif
-				shell(cmd);
+					shell(cmd);
+				}
+				else
+				{
+					mask++;
+				}
 			}
-			else
+			uint32_t end = ~0U;
+			mask = 1;
+			while (mask <= 32)
 			{
-				mask++;
-			}
-		}
-		uint32_t end = ~0U;
-		mask = 1;
-		while (mask <= 32)
-		{
-			if ((uint64_t)end - (1U << (32 - mask)) + 1 > ip)
-			{
-				end -= (1U << (32 - mask));
-				sprintf(subnet, "%u.%u.%u.%u/%d", (end + 1) >> 24, ((end + 1) >> 16) & 0xff, 
-				        ((end + 1) >> 8) & 0xff, (end + 1) & 0xff, mask);
+				if ((uint64_t)end - (1U << (32 - mask)) + 1 > ip)
+				{
+					end -= (1U << (32 - mask));
+					sprintf(subnet, "%u.%u.%u.%u/%d", (end + 1) >> 24, ((end + 1) >> 16) & 0xff, 
+					        ((end + 1) >> 8) & 0xff, (end + 1) & 0xff, mask);
 #ifdef TARGET_LINUX
-				sprintf(cmd, "/bin/sh -c \'ip route add %s dev %s\'", subnet, tunif);
+					sprintf(cmd, "/bin/sh -c \'ip route add %s dev %s\'", subnet, tunif);
 #endif
 #ifdef TARGET_DARWIN
-				sprintf(cmd, "/bin/sh -c \'route add %s -interface %s >/dev/null\'", subnet, tunif);
+					sprintf(cmd, "/bin/sh -c \'route add %s -interface %s >/dev/null\'", subnet, tunif);
 #endif
-				shell(cmd);
-			}
-			else
-			{
-				mask++;
+					shell(cmd);
+				}
+				else
+				{
+					mask++;
+				}
 			}
 		}
+		freeaddrinfo(res);
 	}
-	else
+
+	if (ipv6)
 	{
-
+#ifdef TARGET_LINUX
+		sprintf(cmd, "/bin/sh -c \'ip -6 route add ::/0 dev %s\'", tunif);
+#endif
+#ifdef TARGET_DARWIN
+		sprintf(cmd, "/bin/sh -c \'route add -inet6 ::/0 -interface %s >/dev/null\'", tunif);
+#endif
+		shell(cmd);
 	}
 
-	freeaddrinfo(res);
 	return 0;
 }
 
