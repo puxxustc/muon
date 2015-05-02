@@ -298,7 +298,7 @@ static void udp_cb(void)
 		n = recvfrom(sock, buf, conf->mtu + IV_LEN, 0,
 		             (struct sockaddr *)&addr, &addrlen);
 	}
-	if (n <= 0)
+	if (n < IV_LEN)
 	{
 		if (n < 0)
 		{
