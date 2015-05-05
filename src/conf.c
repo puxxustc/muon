@@ -205,7 +205,7 @@ int read_conf(const char *file, conf_t *conf)
 			}
 			else if (strcmp(value, "no") == 0)
 			{
-				conf->nat = 1;
+				conf->nat = 0;
 			}
 			else
 			{

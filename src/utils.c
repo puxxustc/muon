@@ -192,7 +192,7 @@ int route(const char *tunif, const char *server, int ipv4, int ipv6)
 
 		if (res->ai_addr->sa_family == AF_INET)
 		{
-			char subnet[16];
+			char subnet[32];
 			uint32_t ip = ntohl(((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr);
 			uint32_t start = 0U;
 			int mask = 1;
@@ -259,7 +259,7 @@ int route(const char *tunif, const char *server, int ipv4, int ipv6)
 #ifdef TARGET_LINUX
 int nat(const char *address, int on)
 {
-	char cmd[128];
+	char cmd[200];
 
 	if (on)
 	{
