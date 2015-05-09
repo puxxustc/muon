@@ -3,7 +3,7 @@
 [![Release](https://img.shields.io/github/release/XiaoxiaoPu/sipvpn.svg?style=flat)](https://github.com/XiaoxiaoPu/sipvpn/releases/latest)
 [![License](https://img.shields.io/badge/license-GPL%203-blue.svg?style=flat)](http://www.gnu.org/licenses/gpl.html)
 [![Build Status](https://travis-ci.org/XiaoxiaoPu/sipvpn.svg?branch=master)](https://travis-ci.org/XiaoxiaoPu/sipvpn)
-[![Build Status](https://jenkins.xiaoxiao.im/buildStatus/icon?job=sipvpn)](https://jenkins.xiaoxiao.im/job/sipvpn)
+[![Build Status](https://ci.xiaoxiao.im/buildStatus/icon?job=sipvpn)](https://ci.xiaoxiao.im/job/sipvpn)
 
 **Si**m**p**le stateless **VPN**.
 

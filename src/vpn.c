@@ -265,23 +265,25 @@ static void tun_cb(void)
 		return;
 	}
 
-	// 只对 TCP 包双倍发包
+	// 对 TCP 包, UDP 包双倍发包
 	int dup = conf->duplicate;
 	if (dup)
 	{
 		if ((buf[IV_LEN] >> 4) == 4)
 		{
 			// IPv4
-			if (buf[IV_LEN + 9] != 6)
+			if ((buf[IV_LEN + 9] != 6) && (buf[IV_LEN + 9] != 17))
 			{
+				// not TCP, not UDP
 				dup = 0;
 			}
 		}
 		else if ((buf[IV_LEN] >> 4) == 6)
 		{
 			// IPv6
-			if (buf[IV_LEN + 6] != 6)
+			if ((buf[IV_LEN + 6] != 6) && (buf[IV_LEN + 6] != 17))
 			{
+				// not TCP, not UDP
 				dup = 0;
 			}
 		}
