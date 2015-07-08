@@ -54,7 +54,9 @@ static uint8_t buf[IV_LEN + MTU_MAX];
 
 static void tun_cb(void);
 static void udp_cb(void);
+static int is_dup(uint32_t chksum);
 static void heartbeat(void);
+
 
 int vpn_init(const conf_t *config)
 {
@@ -168,6 +170,7 @@ int vpn_init(const conf_t *config)
 	return 0;
 }
 
+
 int vpn_run(void)
 {
 	fd_set readset;
@@ -247,10 +250,12 @@ int vpn_run(void)
 	return (running == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
+
 void vpn_stop(void)
 {
 	running = 0;
 }
+
 
 static void tun_cb(void)
 {
@@ -308,6 +313,7 @@ static void tun_cb(void)
 		}
 	}
 }
+
 
 static void udp_cb(void)
 {
@@ -375,10 +381,13 @@ static void udp_cb(void)
 		}
 		else
 		{
-			n = tun_write(tun, buf + IV_LEN, n - IV_LEN);
-			if (n < 0)
+			if (!is_dup(*(uint32_t *)buf))
 			{
-				ERROR("tun_write");
+				n = tun_write(tun, buf + IV_LEN, n - IV_LEN);
+				if (n < 0)
+				{
+					ERROR("tun_write");
+				}
 			}
 		}
 		// update remote address
@@ -393,6 +402,37 @@ static void udp_cb(void)
 		}
 	}
 }
+
+
+// 判断一个包是否重复
+#define CHKSUM_LEN 64
+static int is_dup(uint32_t chksum)
+{
+	static uint32_t chksums[CHKSUM_LEN];
+	static int last;
+	for (int i = last; i >= 0; i--)
+	{
+		if (chksums[i] == chksum)
+		{
+			return 1;
+		}
+	}
+	for (int i = CHKSUM_LEN - 1; i > last; i--)
+	{
+		if (chksums[i] == chksum)
+		{
+			return 1;
+		}
+	}
+	chksums[last] = chksum;
+	last++;
+	if (last >= CHKSUM_LEN)
+	{
+		last = 0;
+	}
+	return 0;
+}
+
 
 // 发送心跳包
 static void heartbeat(void)
