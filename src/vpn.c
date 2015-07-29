@@ -405,32 +405,23 @@ static void udp_cb(void)
 
 
 // 判断一个包是否重复
-#define CHKSUM_LEN 64
+#define HASH_LEN 1021U
 static int is_dup(uint32_t chksum)
 {
-	static uint32_t chksums[CHKSUM_LEN];
-	static int last;
-	for (int i = last; i >= 0; i--)
+	static uint32_t hash[HASH_LEN][2];
+	int h = (int)(chksum % HASH_LEN);
+	int dup = 0;
+	if (hash[h][0] == chksum)
 	{
-		if (chksums[i] == chksum)
-		{
-			return 1;
-		}
+		dup = 1;
 	}
-	for (int i = CHKSUM_LEN - 1; i > last; i--)
+	if (hash[h][1] == chksum)
 	{
-		if (chksums[i] == chksum)
-		{
-			return 1;
-		}
+		dup = 1;
 	}
-	chksums[last] = chksum;
-	last++;
-	if (last >= CHKSUM_LEN)
-	{
-		last = 0;
-	}
-	return 0;
+	hash[h][1] = hash[h][0];
+	hash[h][0] = chksum;
+	return dup;
 }
 
 
