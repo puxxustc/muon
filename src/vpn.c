@@ -270,30 +270,6 @@ static void tun_cb(void)
 		return;
 	}
 
-	// 对 TCP 包, UDP 包双倍发包
-	int dup = conf->duplicate;
-	if (dup)
-	{
-		if ((buf[IV_LEN] >> 4) == 4)
-		{
-			// IPv4
-			if ((buf[IV_LEN + 9] != 6) && (buf[IV_LEN + 9] != 17))
-			{
-				// not TCP, not UDP
-				dup = 0;
-			}
-		}
-		else if ((buf[IV_LEN] >> 4) == 6)
-		{
-			// IPv6
-			if ((buf[IV_LEN + 6] != 6) && (buf[IV_LEN + 6] != 17))
-			{
-				// not TCP, not UDP
-				dup = 0;
-			}
-		}
-	}
-
 	if (remote.addrlen != 0)
 	{
 		// 加密
@@ -306,7 +282,7 @@ static void tun_cb(void)
 		{
 			ERROR("sendto");
 		}
-		else if (dup)
+		else if (conf->duplicate)
 		{
 			sendto(sock, buf, n, 0,
 		           (struct sockaddr *)&(remote.addr), remote.addrlen);
