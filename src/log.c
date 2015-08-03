@@ -26,21 +26,21 @@
 
 void __log(FILE *stream, const char *format, ...)
 {
-	time_t now = time(NULL);
-	char timestr[20];
-	strftime(timestr, 20, "%y-%m-%d %H:%M:%S", localtime(&now));
-	fprintf(stream, "[%s] ", timestr);
+    time_t now = time(NULL);
+    char timestr[20];
+    strftime(timestr, 20, "%y-%m-%d %H:%M:%S", localtime(&now));
+    fprintf(stream, "[%s] ", timestr);
 
-	va_list args;
-	va_start(args, format);
-	vfprintf(stream, format, args);
-	va_end(args);
-	putchar('\n');
-	fflush(stream);
+    va_list args;
+    va_start(args, format);
+    vfprintf(stream, format, args);
+    va_end(args);
+    putchar('\n');
+    fflush(stream);
 }
 
 void __err(const char *msg)
 {
-	__log(stderr, "%s: %s", msg, strerror(errno));
+    __log(stderr, "%s: %s", msg, strerror(errno));
 }
 

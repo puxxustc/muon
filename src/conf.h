@@ -24,34 +24,32 @@
 #  include "config.h"
 #endif
 
-#define MTU_MAX 9000
-
 typedef enum
 {
-	server = 1,
-	client = 2
+    server = 1,
+    client = 2
 } vpnmode_t;
 
 typedef struct
 {
-	vpnmode_t mode;
-	int daemon;
-	int mtu;
-	int keepalive;
-	int duplicate;
-	int route;
-	int nat;
-	char pidfile[64];
-	char logfile[64];
-	char user[16];
-	char server[64];
-	char port[16];
-	char key[16];
-	char tunif[16];
-	char address[16];
-	char address6[64];
+    vpnmode_t mode;
+    int daemon;
+    int mtu;
+    int keepalive;
+    int duplicate;
+    int route;
+    int nat;
+    char pidfile[64];
+    char logfile[64];
+    char user[16];
+    char server[64];
+    char port[16];
+    char key[16];
+    char tunif[16];
+    char address[16];
+    char address6[64];
 #ifdef TARGET_DARWIN
-	char peer[16];
+    char peer[16];
 #endif
 } conf_t;
 

@@ -46,337 +46,329 @@ static int tun;
 static int sock;
 static struct
 {
-	struct sockaddr_storage addr;
-	socklen_t addrlen;
+    struct sockaddr_storage addr;
+    socklen_t addrlen;
 } remote;
 
-static uint8_t buf[IV_LEN + MTU_MAX];
+static pbuf_t pbuf;
 
 static void tun_cb(void);
 static void udp_cb(void);
 static int is_dup(uint32_t chksum);
 static void heartbeat(void);
+static void copypkt(pbuf_t *pbuf, const pbuf_t *src);
+static void sendpkt(pbuf_t *buf);
 
 
 int vpn_init(const conf_t *config)
 {
-	conf = config;
+    conf = config;
 
-	LOG("starting sipvpn %s", (conf->mode == server) ? "server" : "client");
+    LOG("starting sipvpn %s", (conf->mode == server) ? "server" : "client");
 
-	// set crypto key
-	crypto_init(conf->key);
+    // set crypto key
+    crypto_init(conf->key);
 
-	// 初始化 UDP socket
-	struct addrinfo hints;
-	struct addrinfo *res;
-	bzero(&hints, sizeof(struct addrinfo));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_DGRAM;
-	hints.ai_protocol = IPPROTO_UDP;
-	if (getaddrinfo(conf->server, conf->port, &hints, &res) != 0)
-	{
-		ERROR("getaddrinfo");
-		return -1;
-	}
-	sock = socket(res->ai_family, SOCK_DGRAM, IPPROTO_UDP);
-	if (sock < 0)
-	{
-		ERROR("socket");
-		freeaddrinfo(res);
-		return -1;
-	}
-	setnonblock(sock);
-	if (conf->mode == client)
-	{
-		// client
-		memcpy(&remote.addr, res->ai_addr, res->ai_addrlen);
-		remote.addrlen = res->ai_addrlen;
-	}
-	else
-	{
-		// server
-		if (bind(sock, res->ai_addr, res->ai_addrlen) != 0)
-		{
-			ERROR("bind");
-			close(sock);
-			freeaddrinfo(res);
-			return -1;
-		}
-	}
-	freeaddrinfo(res);
+    // 初始化 UDP socket
+    struct addrinfo hints;
+    struct addrinfo *res;
+    bzero(&hints, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_protocol = IPPROTO_UDP;
+    if (getaddrinfo(conf->server, conf->port, &hints, &res) != 0)
+    {
+        ERROR("getaddrinfo");
+        return -1;
+    }
+    sock = socket(res->ai_family, SOCK_DGRAM, IPPROTO_UDP);
+    if (sock < 0)
+    {
+        ERROR("socket");
+        freeaddrinfo(res);
+        return -1;
+    }
+    setnonblock(sock);
+    if (conf->mode == client)
+    {
+        // client
+        memcpy(&remote.addr, res->ai_addr, res->ai_addrlen);
+        remote.addrlen = res->ai_addrlen;
+    }
+    else
+    {
+        // server
+        if (bind(sock, res->ai_addr, res->ai_addrlen) != 0)
+        {
+            ERROR("bind");
+            close(sock);
+            freeaddrinfo(res);
+            return -1;
+        }
+    }
+    freeaddrinfo(res);
 
-	// 初始化 tun 设备
-	tun = tun_new(conf->tunif);
-	if (tun < 0)
-	{
-		LOG("failed to init tun device");
-		return -1;
-	}
-	LOG("using tun device: %s", conf->tunif);
+    // 初始化 tun 设备
+    tun = tun_new(conf->tunif);
+    if (tun < 0)
+    {
+        LOG("failed to init tun device");
+        return -1;
+    }
+    LOG("using tun device: %s", conf->tunif);
 
-	// 配置 IP 地址
+    // 配置 IP 地址
 #ifdef TARGET_LINUX
-	if (ifconfig(conf->tunif, conf->mtu, conf->address, conf->address6) != 0)
-	{
-		LOG("failed to add address on tun device");
-	}
+    if (ifconfig(conf->tunif, conf->mtu, conf->address, conf->address6) != 0)
+    {
+        LOG("failed to add address on tun device");
+    }
 #endif
 #ifdef TARGET_DARWIN
-	if (ifconfig(conf->tunif, conf->mtu, conf->address, conf->peer, conf->address6) != 0)
-	{
-		LOG("failed to add address on tun device");
-	}
+    if (ifconfig(conf->tunif, conf->mtu, conf->address, conf->peer, conf->address6) != 0)
+    {
+        LOG("failed to add address on tun device");
+    }
 #endif
 
-	if (conf->mode == client)
-	{
-		if (conf->route)
-		{
-			// 配置路由表
-			if (route(conf->tunif, conf->server, conf->address[0], conf->address6[0]) != 0)
-			{
-				LOG("failed to setup route");
-			}
-		}
-	}
-	else
-	{
+    if (conf->mode == client)
+    {
+        if (conf->route)
+        {
+            // 配置路由表
+            if (route(conf->tunif, conf->server, conf->address[0], conf->address6[0]) != 0)
+            {
+                LOG("failed to setup route");
+            }
+        }
+    }
+    else
+    {
 #ifdef TARGET_DARWIN
-		LOG("server mode is not supported on Mac OS X");
-		return -1;
+        LOG("server mode is not supported on Mac OS X");
+        return -1;
 #endif
 #ifdef TARGET_LINUX
-		if ((conf->nat) && (conf->address[0] != '\0'))
-		{
-			// 配置 NAT
-			if (nat(conf->address, 1))
-			{
-				LOG("failed to turn on NAT");
-			}
-		}
+        if ((conf->nat) && (conf->address[0] != '\0'))
+        {
+            // 配置 NAT
+            if (nat(conf->address, 1))
+            {
+                LOG("failed to turn on NAT");
+            }
+        }
 #endif
-	}
+    }
 
-	// drop root privilege
-	if (conf->user[0] != '\0')
-	{
-		if (runas(conf->user) != 0)
-		{
-			ERROR("runas");
-		}
-	}
+    // drop root privilege
+    if (conf->user[0] != '\0')
+    {
+        if (runas(conf->user) != 0)
+        {
+            ERROR("runas");
+        }
+    }
 
-	return 0;
+    return 0;
 }
 
 
 int vpn_run(void)
 {
-	fd_set readset;
+    fd_set readset;
 
-	running = 1;
-	while (running)
-	{
-		FD_ZERO(&readset);
-		FD_SET(tun, &readset);
-		FD_SET(sock, &readset);
+    running = 1;
+    while (running)
+    {
+        FD_ZERO(&readset);
+        FD_SET(tun, &readset);
+        FD_SET(sock, &readset);
 
-		int r;
-		if ((conf->mode == client) && (conf->keepalive != 0))
-		{
-			struct timeval timeout;
-			timeout.tv_sec = conf->keepalive;
-			timeout.tv_usec = 0;
-			r = select((tun>sock?tun:sock) + 1, &readset, NULL, NULL, &timeout);
-		}
-		else
-		{
-			r = select((tun>sock?tun:sock) + 1, &readset, NULL, NULL, NULL);
-		}
-		if (r == 0)
-		{
-			heartbeat();
-		}
-		else if (r < 0)
-		{
-			if (errno == EINTR)
-			{
-				continue;
-			}
-			else
-			{
-				ERROR("select");
-				break;
-			}
-		}
+        int r;
+        if ((conf->mode == client) && (conf->keepalive != 0))
+        {
+            struct timeval timeout;
+            timeout.tv_sec = conf->keepalive;
+            timeout.tv_usec = 0;
+            r = select((tun>sock?tun:sock) + 1, &readset, NULL, NULL, &timeout);
+        }
+        else
+        {
+            r = select((tun>sock?tun:sock) + 1, &readset, NULL, NULL, NULL);
+        }
+        if (r == 0)
+        {
+            heartbeat();
+        }
+        else if (r < 0)
+        {
+            if (errno == EINTR)
+            {
+                continue;
+            }
+            else
+            {
+                ERROR("select");
+                break;
+            }
+        }
 
-		if (FD_ISSET(tun, &readset))
-		{
-			tun_cb();
-		}
+        if (FD_ISSET(tun, &readset))
+        {
+            tun_cb();
+        }
 
-		if (FD_ISSET(sock, &readset))
-		{
-			udp_cb();
-		}
-	}
+        if (FD_ISSET(sock, &readset))
+        {
+            udp_cb();
+        }
+    }
 
-	// regain root privilege
-	if (conf->user[0] != '\0')
-	{
-		if (runas("root") != 0)
-		{
-			ERROR("runas");
-		}
-	}
+    // regain root privilege
+    if (conf->user[0] != '\0')
+    {
+        if (runas("root") != 0)
+        {
+            ERROR("runas");
+        }
+    }
 
-	// 关闭 NAT
+    // 关闭 NAT
 #ifdef TARGET_LINUX
-	if ((conf->mode == server) && (conf->nat))
-	{
-		if (nat(conf->address, 0))
-		{
-			LOG("failed to turn off NAT");
-		}
-	}
+    if ((conf->mode == server) && (conf->nat))
+    {
+        if (nat(conf->address, 0))
+        {
+            LOG("failed to turn off NAT");
+        }
+    }
 #endif
 
-	// 关闭 tun 设备
-	tun_close(tun);
-	LOG("close tun device");
+    // 关闭 tun 设备
+    tun_close(tun);
+    LOG("close tun device");
 
-	LOG("exit");
-	return (running == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+    LOG("exit");
+    return (running == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 
 void vpn_stop(void)
 {
-	running = 0;
+    running = 0;
 }
 
 
 static void tun_cb(void)
 {
-	// 从 tun 设备读取 IP 包
-	ssize_t n = tun_read(tun, buf + IV_LEN, conf->mtu);
-	if (n <= 0)
-	{
-		if (n < 0)
-		{
-			ERROR("tun_read");
-		}
-		return;
-	}
+    // 从 tun 设备读取 IP 包
+    ssize_t n = tun_read(tun, &(pbuf.payload), conf->mtu);
+    if (n <= 0)
+    {
+        if (n < 0)
+        {
+            ERROR("tun_read");
+        }
+        return;
+    }
+    pbuf.len = (uint16_t)n;
 
-	if (remote.addrlen != 0)
-	{
-		// 加密
-		crypto_encrypt(buf, n);
+    if (conf->duplicate)
+    {
+        static pbuf_t tmp;
+        copypkt(&tmp, &pbuf);
+        sendpkt(&tmp);
+    }
 
-		// 发送 UDP 包
-		n = sendto(sock, buf, n + IV_LEN, 0,
-		           (struct sockaddr *)&(remote.addr), remote.addrlen);
-		if (n < 0)
-		{
-			ERROR("sendto");
-		}
-		else if (conf->duplicate)
-		{
-			sendto(sock, buf, n, 0,
-		           (struct sockaddr *)&(remote.addr), remote.addrlen);
-		}
-	}
+    sendpkt(&pbuf);
 }
 
 
 static void udp_cb(void)
 {
-	// 读取 UDP 包
-	struct sockaddr_storage addr;
-	socklen_t addrlen;
-	ssize_t n;
-	if (conf->mode == client)
-	{
-		// client
-		n = recvfrom(sock, buf, conf->mtu + IV_LEN, 0, NULL, NULL);
-	}
-	else
-	{
-		// server
-		addrlen = sizeof(struct sockaddr_storage);
-		n = recvfrom(sock, buf, conf->mtu + IV_LEN, 0,
-		             (struct sockaddr *)&addr, &addrlen);
-	}
-	if (n < IV_LEN)
-	{
-		if (n < 0)
-		{
-			ERROR("recvfrom");
-		}
-		return;
-	}
+    // 读取 UDP 包
+    struct sockaddr_storage addr;
+    socklen_t addrlen;
+    ssize_t n;
+    if (conf->mode == client)
+    {
+        // client
+        n = recvfrom(sock, &pbuf, conf->mtu + PAYLOAD_OFFSET, 0, NULL, NULL);
+    }
+    else
+    {
+        // server
+        addrlen = sizeof(struct sockaddr_storage);
+        n = recvfrom(sock, &pbuf, conf->mtu + PAYLOAD_OFFSET, 0,
+                     (struct sockaddr *)&addr, &addrlen);
+    }
+    if (n < PAYLOAD_OFFSET)
+    {
+        if (n < 0)
+        {
+            ERROR("recvfrom");
+        }
+        return;
+    }
 
-	// 解密
-	if (crypto_decrypt(buf, n) != 0)
-	{
-		// invalid packet
-		if (conf->mode == client)
-		{
-			LOG("invalid packet, drop");
-		}
-		else
-		{
-			char host[INET6_ADDRSTRLEN];
-			char port[8];
-			if (addr.ss_family == AF_INET)
-			{
-				inet_ntop(AF_INET, &(((struct sockaddr_in *)&addr)->sin_addr),
-				          host, INET_ADDRSTRLEN);
-				sprintf(port, "%u", ntohs(((struct sockaddr_in *)&addr)->sin_port));
-			}
-			else
-			{
-				inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)&addr)->sin6_addr),
-				          host, INET6_ADDRSTRLEN);
-				sprintf(port, "%u", ntohs(((struct sockaddr_in6 *)&addr)->sin6_port));
-			}
-			LOG("invalid packet from %s:%s, drop", host, port);
-		}
-	}
-	else
-	{
-		if (buf[IV_LEN] == 0)
-		{
-			if (conf->mode == server)
-			{
-				// server 接收到一个心跳包，回送一个心跳包
-				heartbeat();
-			}
-		}
-		else
-		{
-			if (!is_dup(*(uint32_t *)buf))
-			{
-				n = tun_write(tun, buf + IV_LEN, n - IV_LEN);
-				if (n < 0)
-				{
-					ERROR("tun_write");
-				}
-			}
-		}
-		// update remote address
-		if (conf->mode == server)
-		{
-			if ((remote.addrlen != addrlen) ||
-			    (memcmp(&(remote.addr), &addr, addrlen) != 0))
-			{
-				memcpy(&(remote.addr), &addr, addrlen);
-				remote.addrlen = addrlen;
-			}
-		}
-	}
+    // 解密
+    if (crypto_decrypt(&pbuf, n) != 0)
+    {
+        // invalid packet
+        if (conf->mode == client)
+        {
+            LOG("invalid packet, drop");
+        }
+        else
+        {
+            char host[INET6_ADDRSTRLEN];
+            char port[8];
+            if (addr.ss_family == AF_INET)
+            {
+                inet_ntop(AF_INET, &(((struct sockaddr_in *)&addr)->sin_addr),
+                          host, INET_ADDRSTRLEN);
+                sprintf(port, "%u", ntohs(((struct sockaddr_in *)&addr)->sin_port));
+            }
+            else
+            {
+                inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)&addr)->sin6_addr),
+                          host, INET6_ADDRSTRLEN);
+                sprintf(port, "%u", ntohs(((struct sockaddr_in6 *)&addr)->sin6_port));
+            }
+            LOG("invalid packet from %s:%s, drop", host, port);
+        }
+        return;
+    }
+
+    if (pbuf.len == 0)
+    {
+        if (conf->mode == server)
+        {
+            // server 接收到一个心跳包，回送一个心跳包
+            heartbeat();
+        }
+    }
+    else
+    {
+        if (!is_dup(*(uint32_t *)(pbuf.iv)))
+        {
+            n = tun_write(tun, pbuf.payload, pbuf.len);
+            if (n < 0)
+            {
+                ERROR("tun_write");
+            }
+        }
+    }
+    // update remote address
+    if (conf->mode == server)
+    {
+        if ((remote.addrlen != addrlen) ||
+            (memcmp(&(remote.addr), &addr, addrlen) != 0))
+        {
+            memcpy(&(remote.addr), &addr, addrlen);
+            remote.addrlen = addrlen;
+        }
+    }
 }
 
 
@@ -384,39 +376,65 @@ static void udp_cb(void)
 #define HASH_LEN 1021U
 static int is_dup(uint32_t chksum)
 {
-	static uint32_t hash[HASH_LEN][2];
-	int h = (int)(chksum % HASH_LEN);
-	int dup = 0;
-	if (hash[h][0] == chksum)
-	{
-		dup = 1;
-	}
-	if (hash[h][1] == chksum)
-	{
-		dup = 1;
-	}
-	hash[h][1] = hash[h][0];
-	hash[h][0] = chksum;
-	return dup;
+    static uint32_t hash[HASH_LEN][2];
+    int h = (int)(chksum % HASH_LEN);
+    int dup = (hash[h][0] == chksum) || (hash[h][1] == chksum);
+
+    hash[h][1] = hash[h][0];
+    hash[h][0] = chksum;
+    return dup;
+}
+
+
+// naive confusion
+static void confusion(pbuf_t *pbuf)
+{
+    if (pbuf->len < conf->mtu)
+    {
+        pbuf->padding = rand() % (conf->mtu - pbuf->len);
+        for (int i = (int)(pbuf->len); i < (int)(pbuf->len) + pbuf->padding; i++)
+        {
+            pbuf->payload[i] = (uint8_t)(rand() & 0xff);
+        }
+    }
+    else
+    {
+        pbuf->padding = 0;
+    }
+}
+
+
+// 复制数据包
+static void copypkt(pbuf_t *pbuf, const pbuf_t *src)
+{
+    pbuf->len = src->len;
+    memcpy(pbuf->payload, src->payload, src->len);
+}
+
+
+// 发送数据包
+static void sendpkt(pbuf_t *pbuf)
+{
+    if (remote.addrlen != 0)
+    {
+        // 混淆
+        confusion(pbuf);
+        // 加密
+        ssize_t n = PAYLOAD_OFFSET + pbuf->len + pbuf->padding;
+        crypto_encrypt(pbuf);
+        n = sendto(sock, pbuf, n, 0, (struct sockaddr *)&(remote.addr), remote.addrlen);
+        if (n < 0)
+        {
+            ERROR("sendto");
+        }
+    }
 }
 
 
 // 发送心跳包
 static void heartbeat(void)
 {
-	if (remote.addrlen != 0)
-	{
-		srand(time(NULL));
-		int len = rand() % (conf->mtu - 40) + 40;
-		for (int i = 0; i < len; i++)
-		{
-			buf[IV_LEN + i] = (uint8_t)(rand() & 0xff);
-		}
-		buf[IV_LEN] = 0;
-
-		crypto_encrypt(buf, len);
-
-		sendto(sock, buf, len + IV_LEN, 0, (struct sockaddr *)&(remote.addr),
-		       remote.addrlen);
-	}
+    srand(time(NULL));
+    pbuf.len = 0;
+    sendpkt(&pbuf);
 }

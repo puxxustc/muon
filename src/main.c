@@ -31,47 +31,47 @@
 
 static void signal_cb(int signo)
 {
-	(void)signo;
-	vpn_stop();
+    (void)signo;
+    vpn_stop();
 }
 
 int main(int argc, char **argv)
 {
-	conf_t conf;
+    conf_t conf;
 
-	if (parse_args(argc, argv, &conf) != 0)
-	{
-		return EXIT_FAILURE;
-	}
+    if (parse_args(argc, argv, &conf) != 0)
+    {
+        return EXIT_FAILURE;
+    }
 
-	// Daemonize
-	if (conf.daemon)
-	{
-		if (daemonize(conf.pidfile, conf.logfile) != 0)
-		{
-			return EXIT_FAILURE;
-		}
-	}
+    // Daemonize
+    if (conf.daemon)
+    {
+        if (daemonize(conf.pidfile, conf.logfile) != 0)
+        {
+            return EXIT_FAILURE;
+        }
+    }
 
-	// 注册 signal handle
+    // 注册 signal handle
 #ifdef HAVE_SIGACTION
-	struct sigaction sa;
-	sa.sa_handler = signal_cb;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-	sigaction(SIGINT, &sa, NULL);
-	sigaction(SIGTERM, &sa, NULL);
-	sigaction(SIGHUP, &sa, NULL);
+    struct sigaction sa;
+    sa.sa_handler = signal_cb;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGHUP, &sa, NULL);
 #else
-	signal(SIGINT, signal_cb);
-	signal(SIGTERM, signal_cb);
-	signal(SIGHUP, signal_cb);
+    signal(SIGINT, signal_cb);
+    signal(SIGTERM, signal_cb);
+    signal(SIGHUP, signal_cb);
 #endif
 
-	if (vpn_init(&conf) != 0)
-	{
-		return EXIT_FAILURE;
-	}
+    if (vpn_init(&conf) != 0)
+    {
+        return EXIT_FAILURE;
+    }
 
-	return vpn_run();
+    return vpn_run();
 }

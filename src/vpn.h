@@ -20,10 +20,33 @@
 #ifndef VPN_H
 #define VPN_H
 
+#include <stddef.h>
+#include <stdint.h>
 #include "conf.h"
+
+
+/*
+ +-----------+-------------+----------------------+-------------------+
+ | IV/CHKSUM | Data Length |        Payload       |      Padding      |
+ +-----------+-------------+----------------------+-------------------+
+      16B          2B               0~mtu
+*/
+typedef struct
+{
+    uint8_t iv[16];
+    uint16_t len;
+    uint8_t payload[2048];
+    // not send to network
+    int padding;
+} pbuf_t;
+
+#define IV_LEN ((int)(offsetof(pbuf_t, len)))
+#define PAYLOAD_OFFSET ((int)(offsetof(pbuf_t, payload)))
+#define PAYLOAD_MAX ((int)(sizeof(pbuf_t) - offsetof(pbuf_t, payload)))
 
 extern int vpn_init(const conf_t *config);
 extern int vpn_run(void);
 extern void vpn_stop(void);
+
 
 #endif
