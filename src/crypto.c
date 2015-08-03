@@ -219,7 +219,7 @@ void crypto_encrypt(pbuf_t *pbuf)
     memcpy(key, pbuf->iv, sizeof(pbuf->iv));
     md5(enc_key, key, sizeof(key));
     // rc4
-    rc4(&(pbuf->len), sizeof(pbuf->len) + pbuf->len + pbuf->padding, enc_key);
+    rc4(&(pbuf->len), sizeof(pbuf->len) + sizeof(pbuf->nonce) + pbuf->len + pbuf->padding, enc_key);
 }
 
 

@@ -386,12 +386,21 @@ static int is_dup(uint32_t chksum)
 }
 
 
+// 复制数据包
+static void copypkt(pbuf_t *pbuf, const pbuf_t *src)
+{
+    pbuf->len = src->len;
+    memcpy(pbuf->payload, src->payload, src->len);
+}
+
+
 // naive confusion
 static void confusion(pbuf_t *pbuf)
 {
-    if (pbuf->len < conf->mtu)
+    pbuf->nonce = (uint16_t)(rand() & 0xffff);
+    if ((conf->confusion && (pbuf->len < conf->mtu)) || (pbuf->len == 0))
     {
-        pbuf->padding = rand() % (conf->mtu - pbuf->len);
+        pbuf->padding = rand() % (conf->mtu - pbuf->len) / 2;
         for (int i = (int)(pbuf->len); i < (int)(pbuf->len) + pbuf->padding; i++)
         {
             pbuf->payload[i] = (uint8_t)(rand() & 0xff);
@@ -401,14 +410,6 @@ static void confusion(pbuf_t *pbuf)
     {
         pbuf->padding = 0;
     }
-}
-
-
-// 复制数据包
-static void copypkt(pbuf_t *pbuf, const pbuf_t *src)
-{
-    pbuf->len = src->len;
-    memcpy(pbuf->payload, src->payload, src->len);
 }
 
 

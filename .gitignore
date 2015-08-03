@@ -30,3 +30,5 @@ src/Makefile
 src/Makefile.in
 src/sipvpn
 stamp-h1
+test1.conf
+test2.conf
