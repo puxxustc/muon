@@ -50,14 +50,13 @@ static struct
     socklen_t addrlen;
 } remote;
 
-static pbuf_t pbuf;
 
-static void tun_cb(void);
-static void udp_cb(void);
-static int is_dup(uint32_t chksum);
-static void heartbeat(void);
+static void tun_cb(pbuf_t *pbuf);
+static void udp_cb(pbuf_t *pbuf);
+static void heartbeat(pbuf_t *pbuf);
 static void copypkt(pbuf_t *pbuf, const pbuf_t *src);
 static void sendpkt(pbuf_t *buf);
+static int  is_dup(uint32_t chksum);
 
 
 int vpn_init(const conf_t *config)
@@ -175,6 +174,7 @@ int vpn_init(const conf_t *config)
 
 int vpn_run(void)
 {
+    pbuf_t pbuf;
     fd_set readset;
 
     running = 1;
@@ -198,7 +198,7 @@ int vpn_run(void)
         }
         if (r == 0)
         {
-            heartbeat();
+            heartbeat(&pbuf);
         }
         else if (r < 0)
         {
@@ -215,12 +215,12 @@ int vpn_run(void)
 
         if (FD_ISSET(tun, &readset))
         {
-            tun_cb();
+            tun_cb(&pbuf);
         }
 
         if (FD_ISSET(sock, &readset))
         {
-            udp_cb();
+            udp_cb(&pbuf);
         }
     }
 
@@ -259,10 +259,10 @@ void vpn_stop(void)
 }
 
 
-static void tun_cb(void)
+static void tun_cb(pbuf_t *pbuf)
 {
     // 从 tun 设备读取 IP 包
-    ssize_t n = tun_read(tun, &(pbuf.payload), conf->mtu);
+    ssize_t n = tun_read(tun, pbuf->payload, conf->mtu);
     if (n <= 0)
     {
         if (n < 0)
@@ -271,20 +271,20 @@ static void tun_cb(void)
         }
         return;
     }
-    pbuf.len = (uint16_t)n;
+    pbuf->len = (uint16_t)n;
 
     if (conf->duplicate)
     {
         static pbuf_t tmp;
-        copypkt(&tmp, &pbuf);
+        copypkt(&tmp, pbuf);
         sendpkt(&tmp);
     }
 
-    sendpkt(&pbuf);
+    sendpkt(pbuf);
 }
 
 
-static void udp_cb(void)
+static void udp_cb(pbuf_t *pbuf)
 {
     // 读取 UDP 包
     struct sockaddr_storage addr;
@@ -293,13 +293,13 @@ static void udp_cb(void)
     if (conf->mode == client)
     {
         // client
-        n = recvfrom(sock, &pbuf, conf->mtu + PAYLOAD_OFFSET, 0, NULL, NULL);
+        n = recvfrom(sock, pbuf, conf->mtu + PAYLOAD_OFFSET, 0, NULL, NULL);
     }
     else
     {
         // server
         addrlen = sizeof(struct sockaddr_storage);
-        n = recvfrom(sock, &pbuf, conf->mtu + PAYLOAD_OFFSET, 0,
+        n = recvfrom(sock, pbuf, conf->mtu + PAYLOAD_OFFSET, 0,
                      (struct sockaddr *)&addr, &addrlen);
     }
     if (n < PAYLOAD_OFFSET)
@@ -312,7 +312,7 @@ static void udp_cb(void)
     }
 
     // 解密
-    if (crypto_decrypt(&pbuf, n) != 0)
+    if (crypto_decrypt(pbuf, n) != 0)
     {
         // invalid packet
         if (conf->mode == client)
@@ -340,19 +340,19 @@ static void udp_cb(void)
         return;
     }
 
-    if (pbuf.len == 0)
+    if (pbuf->len == 0)
     {
         if (conf->mode == server)
         {
             // server 接收到一个心跳包，回送一个心跳包
-            heartbeat();
+            heartbeat(pbuf);
         }
     }
     else
     {
-        if (!is_dup(*(uint32_t *)(pbuf.iv)))
+        if (!is_dup(*(uint32_t *)(pbuf->chksum)))
         {
-            n = tun_write(tun, pbuf.payload, pbuf.len);
+            n = tun_write(tun, pbuf->payload, pbuf->len);
             if (n < 0)
             {
                 ERROR("tun_write");
@@ -397,9 +397,35 @@ static void copypkt(pbuf_t *pbuf, const pbuf_t *src)
 // naive confusion
 static void confusion(pbuf_t *pbuf)
 {
-    pbuf->nonce = (uint16_t)(rand() & 0xffff);
-    if ((conf->confusion && (pbuf->len < conf->mtu)) || (pbuf->len == 0))
+    // nonce = rand()[0:8]
+    for (int i = 0; i < 8; i++)
     {
+        pbuf->nonce[i] = (uint8_t)(rand() & 0xff);
+    }
+    // random padding
+    if (pbuf->len < conf->mtu)
+    {
+        int max = conf->mtu - pbuf->len;
+        if (max > 1000)
+        {
+            pbuf->padding = rand() % 251;
+        }
+        else if (max > 500)
+        {
+            pbuf->padding = rand() % 401 + 99;
+        }
+        else if (max > 200)
+        {
+            pbuf->padding = rand() % 151 + 49;
+        }
+        else
+        {
+            pbuf->padding = rand() % 199;
+            if (pbuf->padding > max)
+            {
+                pbuf->padding = max;
+            }
+        }
         pbuf->padding = rand() % (conf->mtu - pbuf->len) / 2;
         for (int i = (int)(pbuf->len); i < (int)(pbuf->len) + pbuf->padding; i++)
         {
@@ -433,9 +459,9 @@ static void sendpkt(pbuf_t *pbuf)
 
 
 // 发送心跳包
-static void heartbeat(void)
+static void heartbeat(pbuf_t *pbuf)
 {
     srand(time(NULL));
-    pbuf.len = 0;
-    sendpkt(&pbuf);
+    pbuf->len = 0;
+    sendpkt(pbuf);
 }

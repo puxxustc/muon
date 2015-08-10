@@ -241,23 +241,6 @@ int read_conf(const char *file, conf_t *conf)
                 return -1;
             }
         }
-        else if (strcmp(key, "confusion") == 0)
-        {
-            if (strcmp(value, "yes") == 0)
-            {
-                conf->confusion = 1;
-            }
-            else if (strcmp(value, "no") == 0)
-            {
-                conf->confusion = 0;
-            }
-            else
-            {
-                fprintf(stderr, "line %d: confusion must be yes/no\n", line_num);
-                fclose(f);
-                return -1;
-            }
-        }
     }
     fclose(f);
 

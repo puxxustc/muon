@@ -19,6 +19,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include "conf.h"
 #include "crypto.h"
@@ -201,39 +202,40 @@ static void rc4(void *stream, size_t len, const void *key)
 }
 
 
-static char key[32];
+static char key[16 + 8];
 
 
 void crypto_init(const void *psk)
 {
-    memcpy(key + 16, psk, 16);
+    memcpy(key, psk, 16);
 }
 
 
 void crypto_encrypt(pbuf_t *pbuf)
 {
     char enc_key[16];
-    // IV = md5(payload)
-    md5(pbuf->iv, pbuf->payload, pbuf->len);
-    // enc_key = md5(IV + key)
-    memcpy(key, pbuf->iv, sizeof(pbuf->iv));
+    // chksum = md5(payload)[0:4]
+    md5(enc_key, pbuf->payload, pbuf->len);
+    memcpy(pbuf->chksum, enc_key, sizeof(pbuf->chksum));
+    // enc_key = md5(key + nonce)
+    memcpy(key + 16, pbuf->nonce, sizeof(pbuf->nonce));
     md5(enc_key, key, sizeof(key));
     // rc4
-    rc4(&(pbuf->len), sizeof(pbuf->len) + sizeof(pbuf->nonce) + pbuf->len + pbuf->padding, enc_key);
+    rc4(CRYPTO_START(pbuf), CRYPTO_LEN(pbuf), enc_key);
 }
 
 
 int crypto_decrypt(pbuf_t *pbuf, size_t len)
 {
     char dec_key[16];
-    // dec_key = md5(IV + key)
-    memcpy(key, pbuf->iv, sizeof(pbuf->iv));
+    // dec_key = md5(key + nonce)
+    memcpy(key + 16, pbuf->nonce, sizeof(pbuf->nonce));
     md5(dec_key, key, sizeof(key));
     // rc4
-    rc4(&(pbuf->len), len - sizeof(pbuf->iv), dec_key);
-    // check if IV == md5(payload)
+    rc4(CRYPTO_START(pbuf), len - sizeof(pbuf->nonce), dec_key);
+    // check if chksum == md5(payload)[0:4]
     md5(dec_key, pbuf->payload, pbuf->len);
-    if (memcmp(dec_key, pbuf->iv, 16) == 0)
+    if (*(uint32_t *)(pbuf->chksum) == *(uint32_t *)(dec_key))
     {
         return 0;
     }

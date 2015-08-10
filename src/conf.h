@@ -39,7 +39,6 @@ typedef struct
     int route;
     int nat;
     int duplicate;
-    int confusion;
     char pidfile[64];
     char logfile[64];
     char user[16];

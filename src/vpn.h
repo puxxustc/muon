@@ -26,24 +26,28 @@
 
 
 /*
- +-----------+-------------+-----------+----------------------+-------------------+
- | IV/CHKSUM | Data Length |   Nonce   |       Payload        |      Padding      |
- +-----------+-------------+-----------+----------------------+-------------------+
-      16B          2B           2B               0~mtu
+ +---------+----------+-------+-------+-------------+----------------------+-------------------+
+ |  Nonce  |  CHKSUM  |  SEQ  |  ACK  | Data Length |       Payload        |      Padding      |
+ +---------+----------+-------+-------+-------------+----------------------+-------------------+
+      8B        4B        2B      2B         2B               0~mtu
 */
 typedef struct
 {
-    uint8_t iv[16];
+    uint8_t  nonce[8];
+    uint8_t  chksum[4];
+    uint16_t seq;
+    uint16_t ack;
     uint16_t len;
-    uint16_t nonce;
-    uint8_t payload[2048];
+    uint8_t  payload[2048];
     // not send to network
     int padding;
 } pbuf_t;
 
-#define IV_LEN ((int)(offsetof(pbuf_t, len)))
 #define PAYLOAD_OFFSET ((int)(offsetof(pbuf_t, payload)))
 #define PAYLOAD_MAX ((int)(sizeof(pbuf_t) - offsetof(pbuf_t, payload)))
+#define CRYPTO_START(pbuf) ((pbuf)->chksum)
+#define CRYPTO_LEN(pbuf) (offsetof(pbuf_t, payload) - offsetof(pbuf_t, chksum) + (pbuf)->len + (pbuf)->padding)
+
 
 extern int vpn_init(const conf_t *config);
 extern int vpn_run(void);
