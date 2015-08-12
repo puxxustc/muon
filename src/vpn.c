@@ -261,6 +261,8 @@ void vpn_stop(void)
 
 static void tun_cb(pbuf_t *pbuf)
 {
+    static pbuf_t pkt1, pkt2;
+
     // 从 tun 设备读取 IP 包
     ssize_t n = tun_read(tun, pbuf->payload, conf->mtu);
     if (n <= 0)
@@ -275,9 +277,10 @@ static void tun_cb(pbuf_t *pbuf)
 
     if (conf->duplicate)
     {
-        static pbuf_t tmp;
-        copypkt(&tmp, pbuf);
-        sendpkt(&tmp);
+        sendpkt(&pkt1);
+        copypkt(&pkt2, pbuf);
+        sendpkt(&pkt2);
+        copypkt(&pkt1, pbuf);
     }
 
     sendpkt(pbuf);
@@ -412,7 +415,7 @@ static void confusion(pbuf_t *pbuf)
         }
         else if (max > 500)
         {
-            pbuf->padding = rand() % 401 + 99;
+            pbuf->padding = rand() % 251 + 99;
         }
         else if (max > 200)
         {
@@ -426,7 +429,6 @@ static void confusion(pbuf_t *pbuf)
                 pbuf->padding = max;
             }
         }
-        pbuf->padding = rand() % (conf->mtu - pbuf->len) / 2;
         for (int i = (int)(pbuf->len); i < (int)(pbuf->len) + pbuf->padding; i++)
         {
             pbuf->payload[i] = (uint8_t)(rand() & 0xff);
