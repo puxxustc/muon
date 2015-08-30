@@ -1,5 +1,5 @@
 /*
- * crypto.h - encryption and decryption
+ * timer.h - simple timer
  *
  * Copyright (C) 2014 - 2015, Xiaoxiao <i@xiaoxiao.im>
  *
@@ -17,17 +17,13 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CRYPTO_H
-#define CRYPTO_H
-
-#include <stddef.h>
-#include "vpn.h"
+#ifndef TIMER_H
+#define TIMER_H
 
 
-extern void crypto_init(const void *psk);
-extern void crypto_hash(pbuf_t *pbuf);
-extern void crypto_encrypt(pbuf_t *pbuf);
-extern int  crypto_decrypt(pbuf_t *pbuf, size_t len);
+extern long timer_now(void);
+extern void timer_tick(void);
+extern int  timer_set(void (*cb)(), int interval);
 
 
-#endif // CRYPTO_H
+#endif

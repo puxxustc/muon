@@ -26,17 +26,22 @@
 
 
 /*
- +---------+----------+-------+-------+-------------+----------------------+-------------------+
- |  Nonce  |  CHKSUM  |  SEQ  |  ACK  | Data Length |       Payload        |      Padding      |
- +---------+----------+-------+-------+-------------+----------------------+-------------------+
-      8B        4B        2B      2B         2B               0~mtu
+ +---------+----------+----------+----------+-------------+----------------------+-------------------+
+ |  Nonce  |  CHKSUM  |   ACK    |   Flag   | Data length |       Payload        |      Padding      |
+ +---------+----------+----------+----------+-------------+----------------------+-------------------+
+      8B        4B         4B         2B          2B               0~mtu
+
+ FLAG
+ bit0 - ACK
+ bit1 - ACK Payload
+
 */
 typedef struct
 {
     uint8_t  nonce[8];
-    uint8_t  chksum[4];
-    uint16_t seq;
-    uint16_t ack;
+    uint32_t chksum;
+    uint32_t ack;
+    uint16_t flag;
     uint16_t len;
     uint8_t  payload[2048];
     // not send to network
@@ -45,7 +50,7 @@ typedef struct
 
 #define PAYLOAD_OFFSET ((int)(offsetof(pbuf_t, payload)))
 #define PAYLOAD_MAX ((int)(sizeof(pbuf_t) - offsetof(pbuf_t, payload)))
-#define CRYPTO_START(pbuf) ((pbuf)->chksum)
+#define CRYPTO_START(pbuf) (&((pbuf)->chksum))
 #define CRYPTO_LEN(pbuf) (offsetof(pbuf_t, payload) - offsetof(pbuf_t, chksum) + (pbuf)->len + (pbuf)->padding)
 
 

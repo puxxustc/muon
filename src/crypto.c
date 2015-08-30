@@ -211,15 +211,22 @@ void crypto_init(const void *psk)
 }
 
 
+void crypto_hash(pbuf_t *pbuf)
+{
+    // chksum = md5(payload)[0 ^ 4]
+    uint32_t digest[4];
+    md5(digest, pbuf->payload, pbuf->len);
+    pbuf->chksum = digest[0] ^ digest[1] ^ digest[2] ^ digest[3];
+}
+
+
 void crypto_encrypt(pbuf_t *pbuf)
 {
-    char enc_key[16];
-    // chksum = md5(payload)[0:4]
-    md5(enc_key, pbuf->payload, pbuf->len);
-    memcpy(pbuf->chksum, enc_key, sizeof(pbuf->chksum));
     // enc_key = md5(key + nonce)
+    char enc_key[16];
     memcpy(key + 16, pbuf->nonce, sizeof(pbuf->nonce));
     md5(enc_key, key, sizeof(key));
+
     // rc4
     rc4(CRYPTO_START(pbuf), CRYPTO_LEN(pbuf), enc_key);
 }
@@ -227,20 +234,16 @@ void crypto_encrypt(pbuf_t *pbuf)
 
 int crypto_decrypt(pbuf_t *pbuf, size_t len)
 {
-    char dec_key[16];
     // dec_key = md5(key + nonce)
+    char dec_key[16];
     memcpy(key + 16, pbuf->nonce, sizeof(pbuf->nonce));
     md5(dec_key, key, sizeof(key));
+
     // rc4
     rc4(CRYPTO_START(pbuf), len - sizeof(pbuf->nonce), dec_key);
+
     // check if chksum == md5(payload)[0:4]
-    md5(dec_key, pbuf->payload, pbuf->len);
-    if (*(uint32_t *)(pbuf->chksum) == *(uint32_t *)(dec_key))
-    {
-        return 0;
-    }
-    else
-    {
-        return -1;
-    }
+    uint32_t chksum = pbuf->chksum;
+    crypto_hash(pbuf);
+    return (chksum == pbuf->chksum) ? 0 : -1;
 }

@@ -39,6 +39,7 @@
 #  include <sys/uio.h>
 #endif
 
+
 #ifdef TARGET_LINUX
 int tun_new(const char *dev)
 {
@@ -67,6 +68,7 @@ int tun_new(const char *dev)
     return fd;
 }
 #endif
+
 
 #ifdef TARGET_DARWIN
 int tun_new(const char *dev)
@@ -116,17 +118,6 @@ int tun_new(const char *dev)
     return fd;
 }
 
-static inline int utun_modified_len(int len)
-{
-    if (len > 0)
-    {
-        return (len > (int)sizeof (uint32_t)) ? len - sizeof (uint32_t) : 0;
-    }
-    else
-    {
-        return len;
-    }
-}
 
 ssize_t tun_read(int tun, void *buf, size_t len)
 {
@@ -138,18 +129,16 @@ ssize_t tun_read(int tun, void *buf, size_t len)
     iv[1].iov_base = buf;
     iv[1].iov_len = len;
 
-    return utun_modified_len(readv(tun, iv, 2));
+    return readv(tun, iv, 2) - 4;
 }
+
 
 ssize_t tun_write(int tun, void *buf, size_t len)
 {
     uint32_t type;
     struct iovec iv[2];
-    struct ip *iph;
 
-    iph = (struct ip *)buf;
-
-    if (iph->ip_v == 6)
+    if (((struct ip *)buf)->ip_v == 6)
     {
         type = htonl(AF_INET6);
     }
@@ -163,9 +152,10 @@ ssize_t tun_write(int tun, void *buf, size_t len)
     iv[1].iov_base = buf;
     iv[1].iov_len = len;
 
-    return utun_modified_len(writev(tun, iv, 2));
+    return writev(tun, iv, 2) - 4;
 }
 #endif
+
 
 void tun_close(int tun)
 {

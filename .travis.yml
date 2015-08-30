@@ -1,14 +1,12 @@
 language: c
-cache: apt
 compiler:
     - gcc
     - clang
 before_script:
-    - "sudo apt-get update -qq"
-    - "sudo apt-get install -qq autoconf automake libtool pkg-config"
     - "mkdir -p m4"
     - "autoreconf -if"
 script:
+    - "export LIBS=-lrt"
     - "./configure --prefix=/usr --sysconfdir=/etc"
     - "make"
     - "make DESTDIR=/tmp/sysroot install"

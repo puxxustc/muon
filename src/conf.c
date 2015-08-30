@@ -153,7 +153,7 @@ int read_conf(const char *file, conf_t *conf)
         else if (strcmp(key, "mtu") == 0)
         {
             conf->mtu = atoi(value);
-            if (conf->mtu < 68 + PAYLOAD_OFFSET)
+            if (conf->mtu < 1024)
             {
                 fprintf(stderr, "line %d: mtu too small\n", line_num);
                 fclose(f);
