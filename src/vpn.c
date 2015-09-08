@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include "conf.h"
 #include "crypto.h"
+#include "uthash.h"
 #include "log.h"
 #include "timer.h"
 #include "tunif.h"
@@ -61,20 +62,21 @@ static struct
 } ack;
 
 // 已发送，未收到 ack
-#define UNACKED_LEN 1021
-struct
+typedef struct sent_t
 {
-    int  send;  // 总发送次数
-    long stime; // 最近一次发送时间戳
+    uint32_t id;    // hash 表的 key
+    long stime;     // 最近一次发送时间戳
     pbuf_t pbuf;
-} unacked[UNACKED_LEN];
+    UT_hash_handle hh;
+} sent_t;
+sent_t *sent = NULL;
 
 
 static void tun_cb(pbuf_t *pbuf);
 static void udp_cb(pbuf_t *pbuf);
 static void heartbeat(void);
 static void copypkt(pbuf_t *pbuf, const pbuf_t *src);
-static void sendpkt(pbuf_t *buf);
+static void sendpkt(pbuf_t *buf, int times);
 static int  is_dup(uint32_t chksum);
 static void flushack(void);
 static void acknowledge(uint32_t chksum);
@@ -316,30 +318,25 @@ static void tun_cb(pbuf_t *pbuf)
     // 计算 hash
     crypto_hash(pbuf);
 
-    // 添加到 unacked 中
-    for (int i = 0; i < UNACKED_LEN; i++)
+    // 添加到 sent 中
+    sent_t *s;
+    HASH_FIND_INT(sent, &(pbuf->chksum), s);
+    if (s == NULL)
     {
-        if (unacked[i].send == 0)
+        s = (sent_t *)malloc(sizeof(sent_t));
+        if (s == NULL)
         {
-            unacked[i].stime = timer_now();
-            unacked[i].send = 1;
-            copypkt(&(unacked[i].pbuf), pbuf);
-            break;
+            ERROR("out of memory");
+            return;
         }
-    }
-
-    // 三倍发包
-    if (conf->duplicate)
-    {
-        pbuf_t pkt;
-        copypkt(&pkt, pbuf);
-        sendpkt(&pkt);
-        copypkt(&pkt, pbuf);
-        sendpkt(&pkt);
+        s->id = pbuf->chksum;
+        s->stime = timer_now();
+        HASH_ADD_INT(sent, id, s);
+        copypkt(&(s->pbuf), pbuf);
     }
 
     // 发送到 remote
-    sendpkt(pbuf);
+    sendpkt(pbuf, conf->duplicate ? 3 : 1);
 }
 
 
@@ -481,14 +478,12 @@ static void flushack(void)
 {
     if (ack.count != 0)
     {
-        pbuf_t pkt, tmp;
+        pbuf_t pkt;
         pkt.len = (uint16_t)(ack.count * 4);
         memcpy(pkt.payload, ack.ack, pkt.len);
         pkt.flag = 0x0002;
         crypto_hash(&pkt);
-        copypkt(&tmp, &pkt);
-        sendpkt(&tmp);
-        sendpkt(&pkt);
+        sendpkt(&pkt, 3);
     }
     ack.count = 0;
 }
@@ -497,12 +492,12 @@ static void flushack(void)
 // acknowledge
 static void acknowledge(uint32_t chksum)
 {
-    for (int i = 0; i < UNACKED_LEN; i++)
+    sent_t *s;
+    HASH_FIND_INT(sent, &chksum, s);
+    if (s != NULL)
     {
-        if ((unacked[i].send != 0) && (unacked[i].pbuf.chksum == chksum))
-        {
-            unacked[i].send = 0;
-        }
+        HASH_DEL(sent, s);
+        free(s);
     }
 }
 
@@ -511,26 +506,16 @@ static void acknowledge(uint32_t chksum)
 static void retransmit(void)
 {
     long now = timer_now();
-    for (int i = 0; i < UNACKED_LEN; i++)
+    sent_t *s, *tmp;
+
+    HASH_ITER(hh, sent, s, tmp)
     {
-        if (unacked[i].send != 0)
+        long diff = now - s->stime;
+        if (diff > 180)
         {
-            long diff = now - unacked[i].stime;
-            if (diff > 200)
-            {
-                unacked[i].send++;
-                unacked[i].stime = now;
-                pbuf_t tmp;
-                for (int j = 0; j < unacked[i].send; j++)
-                {
-                    copypkt(&tmp, &(unacked[i].pbuf));
-                    sendpkt(&tmp);
-                }
-                if (unacked[i].send >= 4)
-                {
-                    unacked[i].send = 0;
-                }
-            }
+            sendpkt(&(s->pbuf), 3);
+            HASH_DEL(sent, s);
+            free(s);
         }
     }
 }
@@ -554,7 +539,7 @@ static void heartbeat(void)
     pbuf_t pkt;
     pkt.len = 0;
     crypto_hash(&pkt);
-    sendpkt(&pkt);
+    sendpkt(&pkt, 1);
 }
 
 
@@ -603,19 +588,34 @@ static void obfuscate(pbuf_t *pbuf)
 
 
 // 发送数据包
-static void sendpkt(pbuf_t *pbuf)
+static void _sendpkt(pbuf_t *pbuf)
+{
+    // 混淆
+    obfuscate(pbuf);
+    // 加密
+    ssize_t n = PAYLOAD_OFFSET + pbuf->len + pbuf->padding;
+    crypto_encrypt(pbuf);
+    n = sendto(sock, pbuf, n, 0, (struct sockaddr *)&(remote.addr), remote.addrlen);
+    if (n < 0)
+    {
+        ERROR("sendto");
+    }
+}
+
+static void sendpkt(pbuf_t *pbuf, int times)
 {
     if (remote.addrlen != 0)
     {
-        // 混淆
-        obfuscate(pbuf);
-        // 加密
-        ssize_t n = PAYLOAD_OFFSET + pbuf->len + pbuf->padding;
-        crypto_encrypt(pbuf);
-        n = sendto(sock, pbuf, n, 0, (struct sockaddr *)&(remote.addr), remote.addrlen);
-        if (n < 0)
+        if (times > 1)
         {
-            ERROR("sendto");
+            pbuf_t tmp;
+            while (times > 1)
+            {
+                copypkt(&tmp, pbuf);
+                _sendpkt(&tmp);
+                times--;
+            }
         }
+        _sendpkt(pbuf);
     }
 }
