@@ -72,6 +72,12 @@ typedef struct sent_t
 sent_t *sent = NULL;
 
 
+// 计算 RTO 的数据
+int srtt = 0;
+int devrtt = 0;
+int rto = 100;
+
+
 static void tun_cb(pbuf_t *pbuf);
 static void udp_cb(pbuf_t *pbuf);
 static void heartbeat(void);
@@ -207,10 +213,10 @@ int vpn_run(void)
         timer_set(heartbeat, conf->keepalive * 1000);
     }
 
-    // ack timer, 10ms
-    timer_set(flushack, 10);
+    // ack timer, 5ms
+    timer_set(flushack, 5);
 
-    // retransmit timer, 20ms
+    // retransmit timer, 10ms
     timer_set(retransmit, 10);
 
     running = 1;
@@ -490,12 +496,24 @@ static void flushack(void)
 
 
 // acknowledge
+#define ABS(x) ((x) > 0 ? (x) : -(x))
 static void acknowledge(uint32_t chksum)
 {
     sent_t *s;
     HASH_FIND_INT(sent, &chksum, s);
     if (s != NULL)
     {
+        // SRTT = SRTT + α (RTT – SRTT)
+        // DevRTT = (1-β)*DevRTT + β*(|RTT-SRTT|)
+        // RTO= µ * SRTT + ∂ *DevRTT
+        int rtt = timer_now() - s->stime;
+        srtt = srtt + (rtt - srtt) / 8;
+        devrtt = devrtt * 3 / 4 + ABS(rtt - srtt) / 4;
+        rto = srtt + devrtt * 5 / 4;
+        if (rto < 30)
+        {
+            rto = 30;
+        }
         HASH_DEL(sent, s);
         free(s);
     }
@@ -507,11 +525,10 @@ static void retransmit(void)
 {
     long now = timer_now();
     sent_t *s, *tmp;
-
     HASH_ITER(hh, sent, s, tmp)
     {
         long diff = now - s->stime;
-        if (diff > 180)
+        if (diff > rto)
         {
             sendpkt(&(s->pbuf), 3);
             HASH_DEL(sent, s);
