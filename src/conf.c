@@ -228,7 +228,7 @@ int read_conf(const char *file, conf_t *conf)
         {
             if (strcmp(value, "yes") == 0)
             {
-                conf->duplicate = 1;
+                conf->duplicate = 2;
             }
             else if (strcmp(value, "no") == 0)
             {
@@ -236,9 +236,11 @@ int read_conf(const char *file, conf_t *conf)
             }
             else
             {
-                fprintf(stderr, "line %d: duplicate must be yes/no\n", line_num);
-                fclose(f);
-                return -1;
+                conf->duplicate = atoi(value);
+                if (conf->duplicate < 0)
+                {
+                    conf->duplicate = 0;
+                }
             }
         }
     }

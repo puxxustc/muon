@@ -336,7 +336,7 @@ static void tun_cb(pbuf_t *pbuf)
     }
 
     // 发送到 remote
-    sendpkt(pbuf, conf->duplicate ? 3 : 1);
+    sendpkt(pbuf, conf->duplicate > 1 ? conf->duplicate : 1);
 }
 
 
