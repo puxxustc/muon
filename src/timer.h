@@ -21,9 +21,9 @@
 #define TIMER_H
 
 
-extern long timer_now(void);
+extern uint64_t timer_now(void);
 extern void timer_tick(void);
-extern int  timer_set(void (*cb)(), int interval);
+extern int timer_set(void (*cb)(), int interval);
 
 
 #endif

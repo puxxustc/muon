@@ -65,7 +65,7 @@ static struct
 typedef struct sent_t
 {
     uint32_t id;    // hash 表的 key
-    long stime;     // 最近一次发送时间戳
+    uint64_t stime; // 最近一次发送时间戳
     pbuf_t pbuf;
     UT_hash_handle hh;
 } sent_t;
@@ -506,7 +506,7 @@ static void acknowledge(uint32_t chksum)
         // SRTT = SRTT + α (RTT – SRTT)
         // DevRTT = (1-β)*DevRTT + β*(|RTT-SRTT|)
         // RTO= µ * SRTT + ∂ *DevRTT
-        int rtt = timer_now() - s->stime;
+        int rtt = (int)(timer_now() - s->stime);
         srtt = srtt + (rtt - srtt) / 8;
         devrtt = devrtt * 3 / 4 + ABS(rtt - srtt) / 4;
         rto = srtt + devrtt * 5 / 4;
@@ -523,12 +523,12 @@ static void acknowledge(uint32_t chksum)
 // retransmit
 static void retransmit(void)
 {
-    long now = timer_now();
+    uint64_t now = timer_now();
     sent_t *s, *tmp;
     HASH_ITER(hh, sent, s, tmp)
     {
-        long diff = now - s->stime;
-        if (diff > rto)
+        uint64_t diff = now - s->stime;
+        if (diff > (uint64_t)rto)
         {
             sendpkt(&(s->pbuf), 3);
             HASH_DEL(sent, s);
@@ -552,7 +552,7 @@ static void copypkt(pbuf_t *dest, const pbuf_t *src)
 // 发送心跳包
 static void heartbeat(void)
 {
-    srand(timer_now());
+    srand((unsigned)timer_now());
     pbuf_t pkt;
     pkt.len = 0;
     crypto_hash(&pkt);

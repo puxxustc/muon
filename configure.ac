@@ -29,7 +29,7 @@ AM_CONDITIONAL(DEBUG, test x"$debug" = x"true")
 
 # Checks for header files.
 AC_HEADER_ASSERT
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h pwd.h stddef.h stdint.h stdio.h stdlib.h string.h sys/ioctl.h sys/select.h sys/socket.h sys/stat.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h netdb.h pwd.h stddef.h stdint.h stdio.h stdlib.h string.h sys/ioctl.h sys/select.h sys/socket.h sys/stat.h sys/time.h unistd.h])
 
 # Check build target
 case "$host" in
@@ -50,12 +50,15 @@ AC_C_INLINE
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
-AC_TYPE_UINT32_T
 AC_TYPE_UINT8_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
+AC_CHECK_TYPES([ptrdiff_t])
 
 # Checks for library functions.
 AC_FUNC_FORK
-AC_CHECK_FUNCS([bzero select setenv setuid sigaction socket strchr strerror])
+AC_CHECK_FUNCS([bzero clock_gettime gettimeofday memset select sigaction socket strchr strerror])
 
 AC_CONFIG_FILES([Makefile
                  src/Makefile])

@@ -17,6 +17,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdint.h>
 #include <sys/time.h>
 #include <time.h>
 #include "log.h"
@@ -30,27 +31,27 @@ static struct
 {
     int interval;   // 时间间隔
     void (*cb)();   // 回调函数
-    long last;       // 定时器上次触发时间
+    uint64_t last;  // 定时器上次触发时间
 } timer[TIMER_MAX];
 
 
-long timer_now(void)
+uint64_t timer_now(void)
 {
 #ifdef CLOCK_MONOTONIC_COARSE
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC_COARSE, &ts);
-    return (long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+    return (uint64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 #else
     struct timeval tv;
     gettimeofday(&tv, 0);
-    return (long)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    return (uint64_t)tv.tv_sec * 1000 + tv.tv_usec / 1000;
 #endif
 }
 
 
 int timer_set(void (*cb)(), int interval)
 {
-    int now = timer_now();
+    uint64_t now = timer_now();
     if (count >= TIMER_MAX)
     {
         return -1;
@@ -68,7 +69,7 @@ int timer_set(void (*cb)(), int interval)
 
 void timer_tick(void)
 {
-    int now = timer_now();
+    uint64_t now = timer_now();
     for (int i = 0; i < count; i++)
     {
         if (now >= timer[i].last + timer[i].interval)
