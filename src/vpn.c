@@ -32,6 +32,7 @@
 #include "crypto.h"
 #include "uthash.h"
 #include "log.h"
+#include "minilzo.h"
 #include "timer.h"
 #include "tunif.h"
 #include "utils.h"
@@ -87,6 +88,8 @@ static int  is_dup(uint32_t chksum);
 static void flushack(void);
 static void acknowledge(uint32_t chksum);
 static void retransmit(void);
+static void compress(pbuf_t *pbuf);
+static void decompress(pbuf_t *pbuf);
 
 
 int vpn_init(const conf_t *config)
@@ -97,6 +100,13 @@ int vpn_init(const conf_t *config)
 
     // set crypto key
     crypto_init(conf->key);
+
+    // 初始化 lzo
+    if (lzo_init() != LZO_E_OK)
+    {
+        LOG("failed to initialize LZO library");
+        return -1;
+    }
 
     // 初始化 UDP socket
     struct addrinfo hints;
@@ -321,6 +331,9 @@ static void tun_cb(pbuf_t *pbuf)
         pbuf->flag = 0x0000;
     }
 
+    // 压缩
+    compress(pbuf);
+
     // 计算 hash
     crypto_hash(pbuf);
 
@@ -418,6 +431,9 @@ static void udp_cb(pbuf_t *pbuf)
         return;
     }
 
+    // 解压缩
+    decompress(pbuf);
+
     // ack 包
     if (pbuf->flag & 0x0002)
     {
@@ -488,6 +504,7 @@ static void flushack(void)
         pkt.len = (uint16_t)(ack.count * 4);
         memcpy(pkt.payload, ack.ack, pkt.len);
         pkt.flag = 0x0002;
+        compress(&pkt);
         crypto_hash(&pkt);
         sendpkt(&pkt, 3);
     }
@@ -560,6 +577,37 @@ static void heartbeat(void)
 }
 
 
+// 压缩 pbuf
+static void compress(pbuf_t *pbuf)
+{
+    uint8_t wrkmem[LZO1X_1_MEM_COMPRESS];
+    uint8_t out[2048+2048/16+64+3];
+    lzo_uint olen;
+    lzo1x_1_compress(pbuf->payload, pbuf->len, out, &olen, wrkmem);
+    if (olen < pbuf->len)
+    {
+        memcpy(pbuf->payload, out, olen);
+        pbuf->flag |= 0x04;
+        pbuf->len = olen;
+    }
+}
+
+
+// 解压缩 pbuf
+static void decompress(pbuf_t *pbuf)
+{
+    if (pbuf->flag & 0x04)
+    {
+        uint8_t out[2048];
+        lzo_uint olen;
+        lzo1x_decompress(pbuf->payload, pbuf->len, out, &olen, NULL);
+        memcpy(pbuf->payload, out, olen);
+        pbuf->len = olen;
+    }
+}
+
+
+
 // naïve obfuscation
 static void obfuscate(pbuf_t *pbuf)
 {
@@ -572,21 +620,21 @@ static void obfuscate(pbuf_t *pbuf)
     if (pbuf->len < conf->mtu)
     {
         int max = conf->mtu - pbuf->len;
-        if (max > 1000)
+        if (max > 897)
         {
-            pbuf->padding = rand() % 251;
+            pbuf->padding = rand() % 554;
         }
-        else if (max > 500)
+        else if (max > 554)
         {
-            pbuf->padding = rand() % 251 + 99;
+            pbuf->padding = rand() % 342;
         }
-        else if (max > 200)
+        else if (max > 342)
         {
-            pbuf->padding = rand() % 151 + 49;
+            pbuf->padding = rand() % 211;
         }
         else
         {
-            pbuf->padding = rand() % 199;
+            pbuf->padding = rand() % 130;
             if (pbuf->padding > max)
             {
                 pbuf->padding = max;

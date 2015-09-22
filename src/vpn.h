@@ -31,9 +31,10 @@
  +---------+----------+----------+----------+-------------+----------------------+-------------------+
       8B        4B         4B         2B          2B               0~mtu
 
- FLAG
- bit0 - ACK
- bit1 - ACK Payload
+ Flag
+   bit0 - ACK set
+   bit1 - pure ACK payload
+   bit2 - lzo compress
 
 */
 typedef struct
