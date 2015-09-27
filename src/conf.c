@@ -121,11 +121,11 @@ int read_conf(const char *file, conf_t *conf)
         {
             if (strcmp(value, "server") == 0)
             {
-                conf->mode = server;
+                conf->mode = MODE_SERVER;
             }
             else if (strcmp(value, "client") == 0)
             {
-                conf->mode = client;
+                conf->mode = MODE_CLIENT;
             }
             else
             {
@@ -144,7 +144,13 @@ int read_conf(const char *file, conf_t *conf)
         }
         else if (strcmp(key, "key") == 0)
         {
-            md5(conf->key, value, strlen(value));
+            int klen = strlen(value);
+            if (klen > 127)
+            {
+                klen = 127;
+            }
+            memcpy(conf->key, value, klen);
+            conf->key[127] = 0;
         }
         else if (strcmp(key, "tunif") == 0)
         {

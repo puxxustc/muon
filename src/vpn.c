@@ -29,10 +29,10 @@
 #include <time.h>
 #include <unistd.h>
 #include "conf.h"
+#include "compress.h"
 #include "crypto.h"
 #include "uthash.h"
 #include "log.h"
-#include "minilzo.h"
 #include "timer.h"
 #include "tunif.h"
 #include "utils.h"
@@ -88,23 +88,17 @@ static int  is_dup(uint32_t chksum);
 static void flushack(void);
 static void acknowledge(uint32_t chksum);
 static void retransmit(void);
-static void compress(pbuf_t *pbuf);
-static void decompress(pbuf_t *pbuf);
 
 
 int vpn_init(const conf_t *config)
 {
     conf = config;
 
-    LOG("starting sipvpn %s", (conf->mode == server) ? "server" : "client");
-
-    // set crypto key
-    crypto_init(conf->key);
+    LOG("starting sipvpn %s", (conf->mode == MODE_SERVER) ? "server" : "client");
 
     // 初始化 lzo
-    if (lzo_init() != LZO_E_OK)
+    if (compress_init() != 0)
     {
-        LOG("failed to initialize LZO library");
         return -1;
     }
 
@@ -128,7 +122,7 @@ int vpn_init(const conf_t *config)
         return -1;
     }
     setnonblock(sock);
-    if (conf->mode == client)
+    if (conf->mode == MODE_CLIENT)
     {
         // client
         memcpy(&remote.addr, res->ai_addr, res->ai_addrlen);
@@ -170,7 +164,7 @@ int vpn_init(const conf_t *config)
     }
 #endif
 
-    if (conf->mode == client)
+    if (conf->mode == MODE_CLIENT)
     {
         if (conf->route)
         {
@@ -218,7 +212,7 @@ int vpn_run(void)
     fd_set readset;
 
     // keepalive
-    if ((conf->mode == client) && (conf->keepalive != 0))
+    if ((conf->mode == MODE_CLIENT) && (conf->keepalive != 0))
     {
         timer_set(heartbeat, conf->keepalive * 1000);
     }
@@ -281,7 +275,7 @@ int vpn_run(void)
 
     // 关闭 NAT
 #ifdef TARGET_LINUX
-    if ((conf->mode == server) && (conf->nat))
+    if ((conf->mode == MODE_SERVER) && (conf->nat))
     {
         if (nat(conf->address, 0))
         {
@@ -365,7 +359,7 @@ static void udp_cb(pbuf_t *pbuf)
     struct sockaddr_storage addr;
     socklen_t addrlen;
     ssize_t n;
-    if (conf->mode == client)
+    if (conf->mode == MODE_CLIENT)
     {
         // client
         n = recvfrom(sock, pbuf, conf->mtu + PAYLOAD_OFFSET, 0, NULL, NULL);
@@ -390,7 +384,7 @@ static void udp_cb(pbuf_t *pbuf)
     if (crypto_decrypt(pbuf, n) != 0)
     {
         // invalid packet
-        if (conf->mode == client)
+        if (conf->mode == MODE_CLIENT)
         {
             LOG("invalid packet, drop");
         }
@@ -418,7 +412,7 @@ static void udp_cb(pbuf_t *pbuf)
     // 心跳包
     if (pbuf->len == 0)
     {
-        if (conf->mode == server)
+        if (conf->mode == MODE_CLIENT)
         {
             heartbeat();
         }
@@ -468,14 +462,10 @@ static void udp_cb(pbuf_t *pbuf)
     }
 
     // 更新 remote address
-    if (conf->mode == server)
+    if (conf->mode == MODE_SERVER)
     {
-        if ((remote.addrlen != addrlen) ||
-            (memcmp(&(remote.addr), &addr, addrlen) != 0))
-        {
-            memcpy(&(remote.addr), &addr, addrlen);
-            remote.addrlen = addrlen;
-        }
+        memcpy(&(remote.addr), &addr, addrlen);
+        remote.addrlen = addrlen;
     }
 }
 
@@ -575,37 +565,6 @@ static void heartbeat(void)
     crypto_hash(&pkt);
     sendpkt(&pkt, 1);
 }
-
-
-// 压缩 pbuf
-static void compress(pbuf_t *pbuf)
-{
-    uint8_t wrkmem[LZO1X_1_MEM_COMPRESS];
-    uint8_t out[2048+2048/16+64+3];
-    lzo_uint olen;
-    lzo1x_1_compress(pbuf->payload, pbuf->len, out, &olen, wrkmem);
-    if (olen < pbuf->len)
-    {
-        memcpy(pbuf->payload, out, olen);
-        pbuf->flag |= 0x04;
-        pbuf->len = olen;
-    }
-}
-
-
-// 解压缩 pbuf
-static void decompress(pbuf_t *pbuf)
-{
-    if (pbuf->flag & 0x04)
-    {
-        uint8_t out[2048];
-        lzo_uint olen;
-        lzo1x_decompress(pbuf->payload, pbuf->len, out, &olen, NULL);
-        memcpy(pbuf->payload, out, olen);
-        pbuf->len = olen;
-    }
-}
-
 
 
 // naïve obfuscation

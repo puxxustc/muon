@@ -58,18 +58,19 @@ static inline uint32_t LEFT_ROTATE(uint32_t x, uint32_t n)
 #define II(a, b, c, d, x, s, ac) \
     do {(a) = (b) + LEFT_ROTATE((a) + I((b), (c), (d)) + (x) + (ac), s);} while (0)
 
-void md5(void *digest, const void *in, size_t len)
+
+void md5(void *digest, const void *in, size_t ilen)
 {
-    size_t n = len * 8 / 512 + 1;
+    size_t n = ilen * 8 / 512 + 1;
     uint32_t M[(n + 1) * 16];
 
     bzero(M, sizeof(M));
-    for (size_t i = 0; i < len; i++)
+    for (size_t i = 0; i < ilen; i++)
     {
         M[i / 4] |= ((unsigned char *)in)[i] << 8 * ((i % 4));
     }
-    M[len / 4] |= 0x80 << 8 * ((len % 4));
-    M[n * 16 - 2] = len * 8;
+    M[ilen / 4] |= 0x80 << 8 * ((ilen % 4));
+    M[n * 16 - 2] = ilen * 8;
 
     uint32_t state[4] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476};
 
@@ -167,4 +168,31 @@ void md5(void *digest, const void *in, size_t len)
     }
 
     memcpy(digest, state, 16);
+}
+
+
+void hmac_md5(void *digest, const void *key, size_t klen, const void *in, size_t ilen)
+{
+    uint8_t ipad[64 + ilen];
+    uint8_t opad[64 + 16];
+    bzero(ipad, 64);
+    bzero(opad, 64);
+    if (klen > 64)
+    {
+        md5(ipad, key, klen);
+        memcpy(opad, ipad, 16);
+    }
+    else
+    {
+        memcpy(ipad, key, klen);
+        memcpy(opad, key, klen);
+    }
+    for (int i = 0; i < 64; i++)
+    {
+        ipad[i] ^= 0x36;
+        opad[i] ^= 0x5c;
+    }
+    memcpy(ipad + 64, in, ilen);
+    md5(opad + 64, ipad, sizeof(ipad));
+    md5(digest, opad, sizeof(opad));
 }

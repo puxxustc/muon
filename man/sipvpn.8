@@ -1,4 +1,4 @@
-.TH SIPVPN 8 "Aug 04, 2015"
+.TH SIPVPN 8 "Sep 28, 2015"
 .SH NAME
 sipvpn \- Simple stateless VPN
 
@@ -80,7 +80,7 @@ IPv6 address of TUN device, CIDR notation
 .TP
 \fIpeer=\fR
 .br
-IPv4 address of remote peer, e.g. 10.10.10.1 (darwin only)
+IPv4 address of remote peer, e.g. 10.10.10.1 (Darwin only)
 
 .TP
 \fIroute=\fR
@@ -96,6 +96,12 @@ enable NAT or not (used in server, yes or no)
 \fIkeepalive=\fR
 .br
 interval for heartbeat, 0 means disabled (used in client)
+
+.TP
+\fIduplicate=\fR
+.br
+duplicate packet transmiting
+
 
 .SH AUTHOR
 .PP

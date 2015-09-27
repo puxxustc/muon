@@ -24,15 +24,12 @@
 #  include "config.h"
 #endif
 
-typedef enum
-{
-    server = 1,
-    client = 2
-} vpnmode_t;
+#define MODE_SERVER 1
+#define MODE_CLIENT 2
 
 typedef struct
 {
-    vpnmode_t mode;
+    int mode;
     int daemon;
     int mtu;
     int keepalive;
@@ -44,7 +41,7 @@ typedef struct
     char user[16];
     char server[64];
     char port[16];
-    char key[16];
+    char key[128];
     char tunif[16];
     char address[16];
     char address6[64];

@@ -1,5 +1,5 @@
 /*
- * md5.h - the MD5 Message-Digest Algorithm (RFC 1321)
+ * compress.h - wrap of lzo
  *
  * Copyright (C) 2014 - 2015, Xiaoxiao <i@xiaoxiao.im>
  *
@@ -17,11 +17,15 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MD5_H
-#define MD5_H
+#ifndef COMPRESS_H
+#define COMPRESS_H
 
-#include <stddef.h>
-extern void md5(void *digest, const void *in, size_t ilen);
-extern void hmac_md5(void *digest, const void *key, size_t klen, const void *in, size_t ilen);
+#include "vpn.h"
 
-#endif // MD5_H
+
+extern int compress_init(void);
+extern void compress(pbuf_t *pbuf);
+extern void decompress(pbuf_t *pbuf);
+
+
+#endif

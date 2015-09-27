@@ -202,30 +202,32 @@ static void rc4(void *stream, size_t len, const void *key)
 }
 
 
-static char key[16 + 8];
+static uint8_t key[128];
+static int klen;
 
 
-void crypto_init(const void *psk)
+void crypto_init(const void *_key)
 {
-    memcpy(key, psk, 16);
+    klen = strlen(_key);
+    memcpy(key, _key, klen);
+    key[klen] = '\0';
 }
 
 
 void crypto_hash(pbuf_t *pbuf)
 {
-    // chksum = md5(payload)[0 ^ 4]
+    // chksum = hmac_md5(payload)[0 ^ 4]
     uint32_t digest[4];
-    md5(digest, pbuf->payload, pbuf->len);
+    hmac_md5(digest, key, klen, pbuf->payload, pbuf->len);
     pbuf->chksum = digest[0] ^ digest[1] ^ digest[2] ^ digest[3];
 }
 
 
 void crypto_encrypt(pbuf_t *pbuf)
 {
-    // enc_key = md5(key + nonce)
-    char enc_key[16];
-    memcpy(key + 16, pbuf->nonce, sizeof(pbuf->nonce));
-    md5(enc_key, key, sizeof(key));
+    // enc_key = hmac_md5(key, nonce)
+    uint8_t enc_key[16];
+    hmac_md5(enc_key, key, klen, pbuf->nonce, sizeof(pbuf->nonce));
 
     // rc4
     rc4(CRYPTO_START(pbuf), CRYPTO_LEN(pbuf), enc_key);
@@ -234,10 +236,9 @@ void crypto_encrypt(pbuf_t *pbuf)
 
 int crypto_decrypt(pbuf_t *pbuf, size_t len)
 {
-    // dec_key = md5(key + nonce)
-    char dec_key[16];
-    memcpy(key + 16, pbuf->nonce, sizeof(pbuf->nonce));
-    md5(dec_key, key, sizeof(key));
+    // dec_key = hmac_md5(key, nonce)
+    uint8_t dec_key[16];
+    hmac_md5(dec_key, key, klen, pbuf->nonce, sizeof(pbuf->nonce));
 
     // rc4
     rc4(CRYPTO_START(pbuf), len - sizeof(pbuf->nonce), dec_key);
