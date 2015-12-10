@@ -450,7 +450,10 @@ static int encapsulate(pbuf_t *pbuf)
     crypto_hash(pbuf);
 
     // 混淆
-    obfuscate(pbuf);
+    if (conf->obfuscate)
+    {
+        obfuscate(pbuf);
+    }
 
     // 加密
     ssize_t n = PAYLOAD_OFFSET + pbuf->len + pbuf->padding;

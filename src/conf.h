@@ -36,6 +36,7 @@ typedef struct
     int route;
     int nat;
     int duplicate;
+    int obfuscate;
     char pidfile[64];
     char logfile[64];
     char user[16];

@@ -247,6 +247,17 @@ int read_conf(const char *file, conf_t *conf)
                 return -1;
             }
         }
+        else if (strcmp(key, "obfuscate") == 0)
+        {
+            if (strcmp(value, "yes") == 0)
+            {
+                conf->obfuscate = 1;
+            }
+            else if (strcmp(value, "no") == 0)
+            {
+                conf->obfuscate = 0;
+            }
+        }
         else if (strcmp(key, "duplicate") == 0)
         {
             if (strcmp(value, "yes") == 0)
