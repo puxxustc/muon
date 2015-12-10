@@ -28,12 +28,13 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
+#include <libmill.h>
 #include "conf.h"
 #include "compress.h"
 #include "crypto.h"
 #include "uthash.h"
 #include "log.h"
-#include "timer.h"
+#include "md5.h"
 #include "tunif.h"
 #include "utils.h"
 #include "vpn.h"
@@ -46,48 +47,20 @@ static const conf_t *conf;
 
 static volatile int running;
 static int tun;
-static int sock;
-static struct
-{
-    struct sockaddr_storage addr;
-    socklen_t addrlen;
-} remote;
+static udpsock sock;
+ipaddr remote;
+int remote_active;
 
 
-// 待发送的 ack
-#define ACK_LEN 256
-static struct
-{
-    int count;
-    uint32_t ack[ACK_LEN];
-} ack;
+coroutine static void tun_worker(void);
+coroutine static void udp_worker(int port, int timeout);
+coroutine static void udp_sender(pbuf_t *pbuf, int times);
+coroutine static void client_hop(void);
+coroutine static void heartbeat(int interval);
 
-// 已发送，未收到 ack
-typedef struct sent_t
-{
-    uint32_t id;    // hash 表的 key
-    uint64_t stime; // 最近一次发送时间戳
-    pbuf_t pbuf;
-    UT_hash_handle hh;
-} sent_t;
-sent_t *sent = NULL;
-
-
-// 计算 RTO 的数据
-int srtt = 0;
-int devrtt = 0;
-int rto = 100;
-
-
-static void tun_cb(pbuf_t *pbuf);
-static void udp_cb(pbuf_t *pbuf);
-static void heartbeat(void);
-static void copypkt(pbuf_t *pbuf, const pbuf_t *src);
-static void sendpkt(pbuf_t *buf, int times);
-static int  is_dup(uint32_t chksum);
-static void flushack(void);
-static void acknowledge(uint32_t chksum);
-static void retransmit(void);
+static int encapsulate(pbuf_t *pbuf);
+static int decapsulate(pbuf_t *pbuf, int n);
+static int otp_port(int offset);
 
 
 int vpn_init(const conf_t *config)
@@ -101,45 +74,6 @@ int vpn_init(const conf_t *config)
     {
         return -1;
     }
-
-    // 初始化 UDP socket
-    struct addrinfo hints;
-    struct addrinfo *res;
-    bzero(&hints, sizeof(struct addrinfo));
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_protocol = IPPROTO_UDP;
-    if (getaddrinfo(conf->server, conf->port, &hints, &res) != 0)
-    {
-        ERROR("getaddrinfo");
-        return -1;
-    }
-    sock = socket(res->ai_family, SOCK_DGRAM, IPPROTO_UDP);
-    if (sock < 0)
-    {
-        ERROR("socket");
-        freeaddrinfo(res);
-        return -1;
-    }
-    setnonblock(sock);
-    if (conf->mode == MODE_CLIENT)
-    {
-        // client
-        memcpy(&remote.addr, res->ai_addr, res->ai_addrlen);
-        remote.addrlen = res->ai_addrlen;
-    }
-    else
-    {
-        // server
-        if (bind(sock, res->ai_addr, res->ai_addrlen) != 0)
-        {
-            ERROR("bind");
-            close(sock);
-            freeaddrinfo(res);
-            return -1;
-        }
-    }
-    freeaddrinfo(res);
 
     // 初始化 tun 设备
     tun = tun_new(conf->tunif);
@@ -208,60 +142,30 @@ int vpn_init(const conf_t *config)
 
 int vpn_run(void)
 {
-    pbuf_t pbuf;
-    fd_set readset;
-
-    // keepalive
-    if ((conf->mode == MODE_CLIENT) && (conf->keepalive != 0))
+    if (conf->mode == MODE_CLIENT)
     {
-        timer_set(heartbeat, conf->keepalive * 1000);
+        go(client_hop());
+    }
+    else
+    {
+        for (int i = conf->port[0]; i <= conf->port[1]; i++)
+        {
+            go(udp_worker(i, -1));
+        }
     }
 
-    // ack timer, 5ms
-    timer_set(flushack, 5);
+    go(tun_worker());
 
-    // retransmit timer, 10ms
-    timer_set(retransmit, 10);
+    // keepalive
+    if (conf->keepalive != 0)
+    {
+        go(heartbeat(conf->keepalive * 1000));
+    }
 
     running = 1;
     while (running)
     {
-        FD_ZERO(&readset);
-        FD_SET(tun, &readset);
-        FD_SET(sock, &readset);
-
-        // 10 ms
-        struct timeval timeout = {.tv_sec = 0, .tv_usec = 10 * 1000};
-        int r = select((tun>sock?tun:sock) + 1, &readset, NULL, NULL, &timeout);
-        timer_tick();
-
-        if (r == 0)
-        {
-            continue;
-        }
-
-        if (r < 0)
-        {
-            if (errno == EINTR)
-            {
-                continue;
-            }
-            else
-            {
-                ERROR("select");
-                break;
-            }
-        }
-
-        if (FD_ISSET(tun, &readset))
-        {
-            tun_cb(&pbuf);
-        }
-
-        if (FD_ISSET(sock, &readset))
-        {
-            udp_cb(&pbuf);
-        }
+        msleep(now() + 100);
     }
 
     // regain root privilege
@@ -299,271 +203,196 @@ void vpn_stop(void)
 }
 
 
-static void tun_cb(pbuf_t *pbuf)
+coroutine static void tun_worker(void)
 {
-    // 从 tun 设备读取 IP 包
-    ssize_t n = tun_read(tun, pbuf->payload, conf->mtu);
-    if (n <= 0)
+    pbuf_t pbuf;
+    while (1)
     {
-        if (n < 0)
+        int events = fdwait(tun, FDW_IN, -1);
+        if(events & FDW_IN)
         {
-            ERROR("tun_read");
+            // 从 tun 设备读取 IP 包
+            ssize_t n = tun_read(tun, pbuf.payload, conf->mtu);
+            if (n <= 0)
+            {
+                ERROR("tun_read");
+                return;
+            }
+            pbuf.len = (uint16_t)n;
+            pbuf.flag = 0x0000;
+
+            // 发送到 remote
+            go(udp_sender(&pbuf, conf->duplicate));
         }
-        return;
     }
-    pbuf->len = (uint16_t)n;
-
-    // 取一个待发送的 ack
-    if (ack.count != 0)
-    {
-        pbuf->flag = 0x0001;
-        pbuf->ack = ack.ack[ack.count - 1];
-        ack.count--;
-    }
-    else
-    {
-        pbuf->flag = 0x0000;
-    }
-
-    // 压缩
-    compress(pbuf);
-
-    // 计算 hash
-    crypto_hash(pbuf);
-
-    // 添加到 sent 中
-    sent_t *s;
-    HASH_FIND_INT(sent, &(pbuf->chksum), s);
-    if (s == NULL)
-    {
-        s = (sent_t *)malloc(sizeof(sent_t));
-        if (s == NULL)
-        {
-            ERROR("out of memory");
-            return;
-        }
-        s->id = pbuf->chksum;
-        s->stime = timer_now();
-        HASH_ADD_INT(sent, id, s);
-        copypkt(&(s->pbuf), pbuf);
-    }
-
-    // 发送到 remote
-    sendpkt(pbuf, conf->duplicate > 1 ? conf->duplicate : 1);
 }
 
 
-static void udp_cb(pbuf_t *pbuf)
+coroutine static void client_hop(void)
 {
-    // 读取 UDP 包
-    struct sockaddr_storage addr;
-    socklen_t addrlen;
-    ssize_t n;
+    while (1)
+    {
+        int port = otp_port(0);
+        go(udp_worker(port, 5 * 1000));
+        msleep(now() + 500);
+    }
+}
+
+
+coroutine static void udp_worker(int port, int timeout)
+{
+    int64_t deadline;
+    if (timeout < 0)
+    {
+        deadline = -1;
+    }
+    else
+    {
+        deadline = now() + timeout;
+    }
+
+    ipaddr addr;
     if (conf->mode == MODE_CLIENT)
     {
         // client
-        n = recvfrom(sock, pbuf, conf->mtu + PAYLOAD_OFFSET, 0, NULL, NULL);
+        addr = iplocal("0.0.0.0", 0, 0);
+        remote = ipremote(conf->server, port, 0, 0);
+        remote_active = 1;
     }
     else
     {
         // server
-        addrlen = sizeof(struct sockaddr_storage);
-        n = recvfrom(sock, pbuf, conf->mtu + PAYLOAD_OFFSET, 0,
-                     (struct sockaddr *)&addr, &addrlen);
+        addr = iplocal(conf->server, port, 0);
     }
-    if (n < PAYLOAD_OFFSET)
+    udpsock s = udplisten(addr);
+
+    if (s == NULL)
     {
-        if (n < 0)
-        {
-            ERROR("recvfrom");
-        }
+        LOG("failed to bind udp address");
         return;
     }
 
-    // 解密
-    if (crypto_decrypt(pbuf, n) != 0)
+    sock = s;
+
+    pbuf_t pbuf;
+    while (1)
     {
-        // invalid packet
+        ssize_t n;
         if (conf->mode == MODE_CLIENT)
         {
-            LOG("invalid packet, drop");
+            // client
+            n = udprecv(s, NULL, &pbuf, conf->mtu + PAYLOAD_OFFSET, deadline);
         }
         else
         {
-            char host[INET6_ADDRSTRLEN];
-            char port[8];
-            if (addr.ss_family == AF_INET)
+            // server
+            n = udprecv(s, &addr, &pbuf, conf->mtu + PAYLOAD_OFFSET, deadline);
+        }
+        if (errno == ETIMEDOUT)
+        {
+            break;
+        }
+        if (n < PAYLOAD_OFFSET)
+        {
+            continue;
+        }
+
+        // 解密
+        n = decapsulate(&pbuf, n);
+        if (n < 0)
+        {
+            if (conf->mode == MODE_CLIENT)
             {
-                inet_ntop(AF_INET, &(((struct sockaddr_in *)&addr)->sin_addr),
-                          host, INET_ADDRSTRLEN);
-                sprintf(port, "%u", ntohs(((struct sockaddr_in *)&addr)->sin_port));
+                LOG("invalid packet, drop");
             }
             else
             {
-                inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)&addr)->sin6_addr),
-                          host, INET6_ADDRSTRLEN);
-                sprintf(port, "%u", ntohs(((struct sockaddr_in6 *)&addr)->sin6_port));
+                char buf[IPADDR_MAXSTRLEN];
+                LOG("invalid packet from %s, drop", ipaddrstr(addr, buf));
             }
-            LOG("invalid packet from %s:%s, drop", host, port);
+            continue;
         }
-        return;
-    }
-
-    // 心跳包
-    if (pbuf->len == 0)
-    {
-        if (conf->mode == MODE_CLIENT)
+        else if (n == 0)
         {
-            heartbeat();
+            continue;
         }
-        return;
-    }
 
-    // 过滤重复的包
-    if (is_dup(pbuf->chksum))
-    {
-        return;
-    }
-
-    // 解压缩
-    decompress(pbuf);
-
-    // ack 包
-    if (pbuf->flag & 0x0002)
-    {
-        uint32_t *chksum = (uint32_t *)(pbuf->payload);
-        for (int i = 0; i < (pbuf->len / 4); i++)
+        // 写入到 tun 设备
+        n = tun_write(tun, pbuf.payload, pbuf.len);
+        if (n < 0)
         {
-            acknowledge(chksum[i]);
+            ERROR("tun_write");
         }
+
+        // 更新 remote address
+        if (conf->mode == MODE_SERVER)
+        {
+            sock = s;
+            remote = addr;
+            remote_active = 1;
+        }
+    }
+    udpclose(s);
+}
+
+
+// 发送心跳包
+coroutine static void heartbeat(int interval)
+{
+    while (1)
+    {
+        msleep(now() + interval);
+        srand((unsigned)now());
+        pbuf_t pbuf;
+        pbuf.len = 0;
+        go(udp_sender(&pbuf, 1));
+    }
+}
+
+
+// 发送数据包
+coroutine static void udp_sender(pbuf_t *pbuf, int times)
+{
+    if (!remote_active)
+    {
         return;
     }
-
-    if (pbuf->flag & 0x0001)
+    int n = encapsulate(pbuf);
+    udpsend(sock, remote, pbuf, n);
+    if (times > 1)
     {
-        // ack flag 为 1，说明附带了一个 ack
-        acknowledge(pbuf->ack);
-    }
-
-    // 添加到 ack 队列
-    if (ack.count == ACK_LEN)
-    {
-        // ack 队列满，发送一个 ack 包并清空 ack 队列
-        flushack();
-    }
-    ack.ack[ack.count] = pbuf->chksum;
-    ack.count++;
-
-    // 写入到 tun 设备
-    n = tun_write(tun, pbuf->payload, pbuf->len);
-    if (n < 0)
-    {
-        ERROR("tun_write");
-    }
-
-    // 更新 remote address
-    if (conf->mode == MODE_SERVER)
-    {
-        memcpy(&(remote.addr), &addr, addrlen);
-        remote.addrlen = addrlen;
+        pbuf_t copy;
+        memcpy(&copy, pbuf, n);
+        while (times > 1)
+        {
+            msleep(now() + 30);
+            udpsend(sock, remote, &copy, n);
+            times--;
+        }
     }
 }
 
 
 // 判断一个包是否重复
-#define DUP_LEN 1021
+#define DUP_LEN 4093
 static int is_dup(uint32_t chksum)
 {
-    static uint32_t hash[DUP_LEN][2];
+    static uint32_t hash[DUP_LEN][4];
 
     int h = (int)(chksum % DUP_LEN);
-    int dup = (hash[h][0] == chksum) || (hash[h][1] == chksum);
+    int dup =    (hash[h][0] == chksum)
+              || (hash[h][1] == chksum)
+              || (hash[h][2] == chksum)
+              || (hash[h][3] == chksum);
 
-    hash[h][1] = hash[h][0];
-    hash[h][0] = chksum;
+    if (!dup)
+    {
+        hash[h][3] = hash[h][2];
+        hash[h][2] = hash[h][1];
+        hash[h][1] = hash[h][0];
+        hash[h][0] = chksum;
+    }
     return dup;
-}
-
-
-// 发送 ack 包
-static void flushack(void)
-{
-    if (ack.count != 0)
-    {
-        pbuf_t pkt;
-        pkt.len = (uint16_t)(ack.count * 4);
-        memcpy(pkt.payload, ack.ack, pkt.len);
-        pkt.flag = 0x0002;
-        compress(&pkt);
-        crypto_hash(&pkt);
-        sendpkt(&pkt, 3);
-    }
-    ack.count = 0;
-}
-
-
-// acknowledge
-#define ABS(x) ((x) > 0 ? (x) : -(x))
-static void acknowledge(uint32_t chksum)
-{
-    sent_t *s;
-    HASH_FIND_INT(sent, &chksum, s);
-    if (s != NULL)
-    {
-        // SRTT = SRTT + α (RTT – SRTT)
-        // DevRTT = (1-β)*DevRTT + β*(|RTT-SRTT|)
-        // RTO= µ * SRTT + ∂ *DevRTT
-        int rtt = (int)(timer_now() - s->stime);
-        srtt = srtt + (rtt - srtt) / 8;
-        devrtt = devrtt * 3 / 4 + ABS(rtt - srtt) / 4;
-        rto = srtt + devrtt * 5 / 4;
-        if (rto < 30)
-        {
-            rto = 30;
-        }
-        HASH_DEL(sent, s);
-        free(s);
-    }
-}
-
-
-// retransmit
-static void retransmit(void)
-{
-    uint64_t now = timer_now();
-    sent_t *s, *tmp;
-    HASH_ITER(hh, sent, s, tmp)
-    {
-        uint64_t diff = now - s->stime;
-        if (diff > (uint64_t)rto)
-        {
-            sendpkt(&(s->pbuf), 3);
-            HASH_DEL(sent, s);
-            free(s);
-        }
-    }
-}
-
-
-// 复制数据包
-static void copypkt(pbuf_t *dest, const pbuf_t *src)
-{
-    dest->chksum = src->chksum;
-    dest->ack = src->ack;
-    dest->flag = src->flag;
-    dest->len = src->len;
-    memcpy(dest->payload, src->payload, src->len);
-}
-
-
-// 发送心跳包
-static void heartbeat(void)
-{
-    srand((unsigned)timer_now());
-    pbuf_t pkt;
-    pkt.len = 0;
-    crypto_hash(&pkt);
-    sendpkt(&pkt, 1);
 }
 
 
@@ -611,35 +440,83 @@ static void obfuscate(pbuf_t *pbuf)
 }
 
 
-// 发送数据包
-static void _sendpkt(pbuf_t *pbuf)
+// 封装
+static int encapsulate(pbuf_t *pbuf)
 {
+    // 压缩
+    compress(pbuf);
+
+    // 计算 hash
+    crypto_hash(pbuf);
+
     // 混淆
     obfuscate(pbuf);
+
     // 加密
     ssize_t n = PAYLOAD_OFFSET + pbuf->len + pbuf->padding;
     crypto_encrypt(pbuf);
-    n = sendto(sock, pbuf, n, 0, (struct sockaddr *)&(remote.addr), remote.addrlen);
-    if (n < 0)
-    {
-        ERROR("sendto");
-    }
+
+    return (int)n;
 }
 
-static void sendpkt(pbuf_t *pbuf, int times)
+
+// 解封装
+static int decapsulate(pbuf_t *pbuf, int n)
 {
-    if (remote.addrlen != 0)
+    // 解密
+    int invalid = crypto_decrypt(pbuf, n);
+    if (invalid)
     {
-        if (times > 1)
-        {
-            pbuf_t tmp;
-            while (times > 1)
-            {
-                copypkt(&tmp, pbuf);
-                _sendpkt(&tmp);
-                times--;
-            }
-        }
-        _sendpkt(pbuf);
+        return -1;
     }
+
+    // 忽略心跳包
+    if (pbuf->len == 0)
+    {
+        return 0;
+    }
+
+    // 忽略重复的包
+    if (is_dup(pbuf->chksum))
+    {
+        return 0;
+    }
+
+    // 解压缩
+    decompress(pbuf);
+
+    // 忽略 ack 包
+    if (pbuf->flag & 0x0002)
+    {
+        return 0;
+    }
+
+    if (pbuf->flag & 0x0001)
+    {
+        // 暂不处理 ack flag
+    }
+
+    return (int)(pbuf->len);
+}
+
+
+static int otp_port(int offset)
+{
+    int range = conf->port[1] - conf->port[0];
+
+    if (range == 0)
+    {
+        return conf->port[0];
+    }
+
+    char s[17];
+    uint8_t d[8];
+    sprintf(s, "%016llx", (unsigned long long)now() / 500 + offset);
+    hmac_md5(d, conf->key, conf->klen, s, 16);
+    int port = 0;
+    for (int i = 0; i < 8; i++)
+    {
+        port = (port * 256 + (int)(d[i])) % range;
+    }
+    return port + conf->port[0];
 }

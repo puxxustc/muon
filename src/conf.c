@@ -140,17 +140,34 @@ int read_conf(const char *file, conf_t *conf)
         }
         else if (strcmp(key, "port") == 0)
         {
-            my_strcpy(conf->port, value);
+            char *p = strchr(value, '-');
+            if (p == NULL)
+            {
+                conf->port[0] = atoi(value);
+                conf->port[1] = conf->port[0];
+            }
+            else
+            {
+                *p = '\0';
+                conf->port[0] = atoi(value);
+                conf->port[1] = atoi(p + 1);
+            }
+            if (conf->port[0] > conf->port[1])
+            {
+                int tmp = conf->port[0];
+                conf->port[0] = conf->port[1];
+                conf->port[1] = tmp;
+            }
         }
         else if (strcmp(key, "key") == 0)
         {
-            int klen = strlen(value);
-            if (klen > 127)
+            conf->klen = strlen(value);
+            if (conf->klen > 127)
             {
-                klen = 127;
+                conf->klen = 127;
             }
-            memcpy(conf->key, value, klen);
-            conf->key[127] = 0;
+            memcpy(conf->key, value, conf->klen);
+            conf->key[conf->klen] = 0;
         }
         else if (strcmp(key, "tunif") == 0)
         {
@@ -351,9 +368,10 @@ int parse_args(int argc, char **argv, conf_t *conf)
         fprintf(stderr, "server not set in config file\n");
         return -1;
     }
-    if (conf->port[0] == '\0')
+    if (conf->port[0] == 0)
     {
-        strcpy(conf->port, "1205");
+        conf->port[0] = 1205;
+        conf->port[1] = 1205;
     }
     if (conf->key[0] == '\0')
     {

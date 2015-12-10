@@ -24,7 +24,6 @@
 #  include "config.h"
 #endif
 
-extern int setnonblock(int fd);
 extern int runas(const char *user);
 extern int daemonize(const char *pidfile, const char *logfile);
 extern int route(const char *tunif, const char *server, int ipv4, int ipv6);

@@ -31,20 +31,6 @@
 #include <unistd.h>
 #include "utils.h"
 
-int setnonblock(int fd)
-{
-    int flags;
-    flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1)
-    {
-        return -1;
-    }
-    if (-1 == fcntl(fd, F_SETFL, flags | O_NONBLOCK))
-    {
-        return -1;
-    }
-    return 0;
-}
 
 int runas(const char *user)
 {
@@ -69,6 +55,7 @@ int runas(const char *user)
 
     return 0;
 }
+
 
 int daemonize(const char *pidfile, const char *logfile)
 {
@@ -122,12 +109,13 @@ int daemonize(const char *pidfile, const char *logfile)
     return 0;
 }
 
+
 #define shell(cmd) do {int r = system(cmd); if (r != 0) {return r;}} while (0)
 
 #ifdef TARGET_LINUX
 int ifconfig(const char *tunif, int mtu, const char *address, const char *address6)
 {
-    char cmd[128];
+    char cmd[256];
 
     sprintf(cmd, "/bin/sh -c \'ip link set %s up\'", tunif);
     shell(cmd);
@@ -151,7 +139,7 @@ int ifconfig(const char *tunif, int mtu, const char *address, const char *addres
 #ifdef TARGET_DARWIN
 int ifconfig(const char *tunif, int mtu, const char *address, const char *peer, const char *address6)
 {
-    char cmd[128];
+    char cmd[256];
 
     sprintf(cmd, "/bin/sh -c \'ifconfig %s up\'", tunif);
     shell(cmd);
@@ -164,7 +152,7 @@ int ifconfig(const char *tunif, int mtu, const char *address, const char *peer, 
     }
     if (address6[0] != '\0')
     {
-        sprintf(cmd, "/bin/sh -c \'ifconfig %s inet6 %s\'", tunif, address6);
+        sprintf(cmd, "/bin/sh -c \'ipconfig set %s MANUAL-V6 %s\'", tunif, address6);
         shell(cmd);
     }
 
@@ -172,9 +160,10 @@ int ifconfig(const char *tunif, int mtu, const char *address, const char *peer, 
 }
 #endif
 
+
 int route(const char *tunif, const char *server, int ipv4, int ipv6)
 {
-    char cmd[128];
+    char cmd[256];
 
     if (ipv4)
     {
@@ -256,6 +245,7 @@ int route(const char *tunif, const char *server, int ipv4, int ipv6)
     return 0;
 }
 
+
 #ifdef TARGET_LINUX
 int nat(const char *address, int on)
 {
@@ -282,7 +272,7 @@ int nat(const char *address, int on)
         strcpy(cmd, "/bin/sh -c \'sysctl -w net.ipv4.ip_forward=0\'");
         shell(cmd);
         */
-        sprintf(cmd, "/bin/sh -c \'iptables -t nat -D POSTROUTING -s %s -j MASQUERADE\'", address);
+        sprintf(cmd, "/bin/sh -c \'iptables -t nat -D POSTROUTING -s %s ! -d %s -j MASQUERADE\'", address, address);
         shell(cmd);
         sprintf(cmd, "/bin/sh -c \'iptables -D FORWARD -s %s -j ACCEPT\'", address);
         shell(cmd);

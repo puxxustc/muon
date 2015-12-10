@@ -10,6 +10,10 @@
 
 ### 1. Linux ###
 
+install GNU Aototools, libmill according to your distribution
+
+build:
+
 ```bash
 autoreconf -if
 ./configure --prefix=/usr --sysconfdir=/etc
@@ -19,10 +23,16 @@ sudo make install
 
 ### 2. OS X ###
 
-use homebrew to install autoconf, automake, libtool:
+use homebrew to install GNU Autotools:
 
 ```bash
-brew install autoconf automake libtool
+brew install autoconf automake libtool libmill
+```
+
+install libmill:
+
+```bash
+brew install libmill
 ```
 
 build:

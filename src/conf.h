@@ -40,8 +40,9 @@ typedef struct
     char logfile[64];
     char user[16];
     char server[64];
-    char port[16];
+    int  port[2];
     char key[128];
+    int  klen;
     char tunif[16];
     char address[16];
     char address6[64];
