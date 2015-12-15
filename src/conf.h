@@ -32,11 +32,10 @@ typedef struct
     int mode;
     int daemon;
     int mtu;
-    int keepalive;
     int route;
     int nat;
+    int delay;
     int duplicate;
-    int obfuscate;
     char pidfile[64];
     char logfile[64];
     char user[16];

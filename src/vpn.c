@@ -32,7 +32,6 @@
 #include "conf.h"
 #include "compress.h"
 #include "crypto.h"
-#include "uthash.h"
 #include "log.h"
 #include "md5.h"
 #include "tunif.h"
@@ -49,14 +48,13 @@ static volatile int running;
 static int tun;
 static udpsock sock;
 ipaddr remote;
-int remote_active;
 
 
 coroutine static void tun_worker(void);
 coroutine static void udp_worker(int port, int timeout);
 coroutine static void udp_sender(pbuf_t *pbuf, int times);
 coroutine static void client_hop(void);
-coroutine static void heartbeat(int interval);
+coroutine static void heartbeat(void);
 
 static int encapsulate(pbuf_t *pbuf);
 static int decapsulate(pbuf_t *pbuf, int n);
@@ -157,10 +155,7 @@ int vpn_run(void)
     go(tun_worker());
 
     // keepalive
-    if (conf->keepalive != 0)
-    {
-        go(heartbeat(conf->keepalive * 1000));
-    }
+    go(heartbeat());
 
     running = 1;
     while (running)
@@ -257,12 +252,12 @@ coroutine static void udp_worker(int port, int timeout)
         // client
         addr = iplocal("0.0.0.0", 0, 0);
         remote = ipremote(conf->server, port, 0, 0);
-        remote_active = 1;
     }
     else
     {
         // server
         addr = iplocal(conf->server, port, 0);
+        remote = ipremote(conf->server, port, 0, 0);
     }
     udpsock s = udplisten(addr);
 
@@ -329,7 +324,6 @@ coroutine static void udp_worker(int port, int timeout)
         {
             sock = s;
             remote = addr;
-            remote_active = 1;
         }
     }
     udpclose(s);
@@ -337,13 +331,13 @@ coroutine static void udp_worker(int port, int timeout)
 
 
 // 发送心跳包
-coroutine static void heartbeat(int interval)
+coroutine static void heartbeat(void)
 {
+    pbuf_t pbuf;
     while (1)
     {
-        msleep(now() + interval);
+        msleep(now() + 1000);
         srand((unsigned)now());
-        pbuf_t pbuf;
         pbuf.len = 0;
         go(udp_sender(&pbuf, 1));
     }
@@ -353,22 +347,19 @@ coroutine static void heartbeat(int interval)
 // 发送数据包
 coroutine static void udp_sender(pbuf_t *pbuf, int times)
 {
-    if (!remote_active)
-    {
-        return;
-    }
     int n = encapsulate(pbuf);
-    udpsend(sock, remote, pbuf, n);
-    if (times > 1)
+    pbuf_t copy;
+    memcpy(&copy, pbuf, n);
+    if (conf->delay > 0)
     {
-        pbuf_t copy;
-        memcpy(&copy, pbuf, n);
-        while (times > 1)
-        {
-            msleep(now() + 30);
-            udpsend(sock, remote, &copy, n);
-            times--;
-        }
+        msleep(now() + rand() % conf->delay);
+    }
+    udpsend(sock, remote, &copy, n);
+    while (times > 1)
+    {
+        msleep(now() + 20 + rand() % 20);
+        udpsend(sock, remote, &copy, n);
+        times--;
     }
 }
 
@@ -450,7 +441,7 @@ static int encapsulate(pbuf_t *pbuf)
     crypto_hash(pbuf);
 
     // 混淆
-    if (conf->obfuscate)
+    if (!(pbuf->flag & 0x04))
     {
         obfuscate(pbuf);
     }

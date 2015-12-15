@@ -237,27 +237,6 @@ int read_conf(const char *file, conf_t *conf)
                 return -1;
             }
         }
-        else if (strcmp(key, "keepalive") == 0)
-        {
-            conf->keepalive = atoi(value);
-            if (conf->keepalive < 0)
-            {
-                fprintf(stderr, "line %d: keepalive must be none negative\n", line_num);
-                fclose(f);
-                return -1;
-            }
-        }
-        else if (strcmp(key, "obfuscate") == 0)
-        {
-            if (strcmp(value, "yes") == 0)
-            {
-                conf->obfuscate = 1;
-            }
-            else if (strcmp(value, "no") == 0)
-            {
-                conf->obfuscate = 0;
-            }
-        }
         else if (strcmp(key, "duplicate") == 0)
         {
             if (strcmp(value, "yes") == 0)
@@ -277,6 +256,18 @@ int read_conf(const char *file, conf_t *conf)
                 }
             }
         }
+        else if (strcmp(key, "delay") == 0)
+        {
+            conf->delay = atoi(value);
+            if (conf->delay < 0)
+            {
+                conf->delay = 0;
+            }
+            else if (conf->delay > 50)
+            {
+                conf->delay = 50;
+            }
+        }
     }
     fclose(f);
 
@@ -288,7 +279,6 @@ int parse_args(int argc, char **argv, conf_t *conf)
     const char *conf_file = NULL;
 
     bzero(conf, sizeof(conf_t));
-    conf->keepalive = 10;
 
     for (int i = 1; i < argc; i++)
     {
