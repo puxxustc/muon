@@ -18,6 +18,7 @@
  */
 
 #include <arpa/inet.h>
+#include <assert.h>
 #include <errno.h>
 #include <netdb.h>
 #include <stdint.h>
@@ -313,6 +314,7 @@ coroutine static void udp_worker(int port, int timeout)
         }
 
         // 写入到 tun 设备
+        assert(pbuf.len < sizeof(pbuf.payload));
         n = tun_write(tun, pbuf.payload, pbuf.len);
         if (n < 0)
         {
@@ -347,6 +349,8 @@ coroutine static void heartbeat(void)
 // 发送数据包
 coroutine static void udp_sender(pbuf_t *pbuf, int times)
 {
+    assert(pbuf != NULL);
+
     int n = encapsulate(pbuf);
     pbuf_t copy;
     memcpy(&copy, pbuf, n);
@@ -390,6 +394,8 @@ static int is_dup(uint32_t chksum)
 // naïve obfuscation
 static void obfuscate(pbuf_t *pbuf)
 {
+    assert(pbuf != NULL);
+
     // nonce = rand()[0:8]
     for (int i = 0; i < 8; i++)
     {
@@ -434,6 +440,8 @@ static void obfuscate(pbuf_t *pbuf)
 // 封装
 static int encapsulate(pbuf_t *pbuf)
 {
+    assert(pbuf != NULL);
+
     // 压缩
     compress(pbuf);
 
@@ -457,6 +465,8 @@ static int encapsulate(pbuf_t *pbuf)
 // 解封装
 static int decapsulate(pbuf_t *pbuf, int n)
 {
+    assert(pbuf != NULL);
+
     // 解密
     int invalid = crypto_decrypt(pbuf, n);
     if (invalid)
