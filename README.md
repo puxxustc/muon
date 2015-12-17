@@ -1,10 +1,22 @@
-# sipvpn #
+# muon #
 
-[![Release](https://img.shields.io/github/release/XiaoxiaoPu/sipvpn.svg)](https://github.com/XiaoxiaoPu/sipvpn/releases/latest)
+[![Release](https://img.shields.io/github/release/XiaoxiaoPu/muon.svg)](https://github.com/XiaoxiaoPu/muon/releases/latest)
 [![License](https://img.shields.io/badge/license-GPL%203-blue.svg)](https://www.gnu.org/licenses/gpl.html)
-[![Build Status](https://ci.xiaoxiao.im/buildStatus/icon?job=sipvpn)](https://ci.xiaoxiao.im/job/sipvpn)
+[![Build Status](https://ci.xiaoxiao.im/buildStatus/icon?job=muon)](https://ci.xiaoxiao.im/job/muon)
 
 **Si**m**p**le stateless **VPN**.
+
+## Feature ##
+
+1. Stateless
+2. Perform naïve obfuscation by compression, padding and delayed transmission
+3. Frequent port hopping to escape traffic monitoring
+
+
+## Dependencies ##
+
+1. [libmill](http://libmill.org/)
+
 
 ## Build ##
 
@@ -55,15 +67,22 @@ export PATH="$PATH:/pato/to/cross/compile/toolchain/"
 build:
 
 ```bash
+git clone https://github.com/sustrik/libmill.git
+pushd libmill
+./autogen.sh && ./configure && make
 autoreconf -if
+export CPPFLAGS=-I$(pwd)/libmill
+export LDFLAGS=-L$(pwd)/libmill
 ./configure --host=arm-unknown-linux-gnueabihf \
     --prefix=/usr --sysconfdir=/etc
 make
 ```
 
+
 ## Usage ##
 
-See man:sipvpn(8).
+See man:muon(8).
+
 
 ## License ##
 

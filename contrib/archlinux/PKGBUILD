@@ -1,31 +1,31 @@
-# Maintainer:  Xiaoxiao Pu <i@xiaoxiao.im>
+# Maintainer:  Xiaoxiao <i@xiaoxiao.im>
 
-pkgname=sipvpn-git
-pkgver=r13
+pkgname=muon-git
+pkgver=r
 pkgrel=1
 pkgdesc="Simple stateless VPN"
 arch=('i686' 'x86_64')
-url="https://github.com/XiaoxiaoPu/sipvpn"
+url="https://github.com/XiaoxiaoPu/muon"
 license=('GPL3')
-depends=('iproute2')
+depends=('libmill' 'iproute2')
 makedepends=('git')
-provides=('sipvpn')
-source=("git+https://github.com/XiaoxiaoPu/sipvpn.git")
+provides=('muon')
+source=("git+https://github.com/XiaoxiaoPu/muon.git")
 sha256sums=('SKIP')
 
 pkgver() {
-	cd "${srcdir}/sipvpn"
+	cd "${srcdir}/muon"
 	echo "r$(git rev-list --count HEAD)"
 }
 
 build() {
-	cd "${srcdir}/sipvpn"
+	cd "${srcdir}/muon"
 	autoreconf -if
 	./configure --prefix=/usr --sysconfdir=/etc
 	make
 }
 
 package() {
-	cd "${srcdir}/sipvpn"
+	cd "${srcdir}/muon"
 	make DESTDIR="${pkgdir}/" install
 }

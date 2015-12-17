@@ -1,12 +1,12 @@
-.TH SIPVPN 8 "Sep 28, 2015"
+.TH muon 8 "Dec 18, 2015"
 .SH NAME
-sipvpn \- Simple stateless VPN
+muon \- Simple stateless VPN
 
 .SH SYNOPSIS
-\fBsipvpn\fR [options...]
+\fBmuon\fR [options...]
 
 .SH DESCRIPTION
-\fBsipvpn\fR is a simple stateless VPN.
+\fBmuon\fR is a simple stateless VPN.
 .PP
 
 .SH OPTIONS
@@ -93,16 +93,11 @@ add route or not (used in client, yes or no)
 enable NAT or not (used in server, yes or no)
 
 .TP
-\fIkeepalive=\fR
+\fIdelay=\fR
 .br
-interval for heartbeat, 0 means disabled (used in client)
-
-.TP
-\fIduplicate=\fR
-.br
-duplicate packet transmiting
+delay milliseconds before transmit
 
 
 .SH AUTHOR
 .PP
-This manual page was written by Xiaoxiao Pu <i@xiaoxiao.im>.
+This manual page was written by Xiaoxiao <i@xiaoxiao.im>.

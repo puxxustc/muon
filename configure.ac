@@ -1,8 +1,8 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT([sipvpn], [0.1.0], [https://github.com/XiaoxiaoPu/sipvpn/issues], [sipvpn], [https://github.com/XiaoxiaoPu/sipvpn])
-AC_CONFIG_SRCDIR([sipvpn])
+AC_INIT([muon], [0.1.0], [https://github.com/XiaoxiaoPu/muon/issues], [muon], [https://github.com/XiaoxiaoPu/muon])
+AC_CONFIG_SRCDIR([muon])
 AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_HEADERS([config.h])
 

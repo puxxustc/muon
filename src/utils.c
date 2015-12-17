@@ -93,13 +93,13 @@ int daemonize(const char *pidfile, const char *logfile)
 
     fclose(stdin);
     FILE *fp;
-    fp = freopen(logfile, "w", stdout);
+    fp = freopen(logfile, "a", stdout);
     if (fp == NULL)
     {
         fprintf(stderr, "freopen: %s\n", strerror(errno));
         return -1;
     }
-    fp = freopen(logfile, "w", stderr);
+    fp = freopen(logfile, "a", stderr);
     if (fp == NULL)
     {
         fprintf(stderr, "freopen: %s\n", strerror(errno));

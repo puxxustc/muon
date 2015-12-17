@@ -28,8 +28,8 @@
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
 #else
-#  define PACKAGE "sipvpn"
-#  define PACKAGE_BUGREPORT "https://github.com/XiaoxiaoPu/sipvpn/issues"
+#  define PACKAGE "muon"
+#  define PACKAGE_BUGREPORT "https://github.com/XiaoxiaoPu/muon/issues"
 #  define VERSION "0.1.0"
 #endif
 

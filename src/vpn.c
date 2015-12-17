@@ -66,7 +66,7 @@ int vpn_init(const conf_t *config)
 {
     conf = config;
 
-    LOG("starting sipvpn %s", (conf->mode == MODE_SERVER) ? "server" : "client");
+    LOG("starting muon %s", (conf->mode == MODE_SERVER) ? "server" : "client");
 
     // 初始化 lzo
     if (compress_init() != 0)
