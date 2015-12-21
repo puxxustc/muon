@@ -28,6 +28,6 @@ m4
 missing
 src/Makefile
 src/Makefile.in
-src/sipvpn
+src/muon
 stamp-h1
 test/

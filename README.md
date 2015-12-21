@@ -22,9 +22,7 @@
 
 ### 1. Linux ###
 
-install GNU Aototools, libmill according to your distribution
-
-build:
+install GNU Aototools, libmill according to your distribution, then:
 
 ```bash
 autoreconf -if
@@ -35,25 +33,10 @@ sudo make install
 
 ### 2. OS X ###
 
-use homebrew to install GNU Autotools:
+install homebrew first, then:
 
 ```bash
-brew install autoconf automake libtool libmill
-```
-
-install libmill:
-
-```bash
-brew install libmill
-```
-
-build:
-
-```bash
-autoreconf -if
-./configure --prefix=/usr --sysconfdir=/etc
-make
-sudo make install
+brew install --HEAD ./contrib/homebrew/muon.rb
 ```
 
 ### 3. Cross compile ###
