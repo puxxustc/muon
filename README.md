@@ -4,9 +4,9 @@
 [![License](https://img.shields.io/badge/license-GPL%203-blue.svg)](https://www.gnu.org/licenses/gpl.html)
 [![Build Status](https://ci.xiaoxiao.im/buildStatus/icon?job=muon)](https://ci.xiaoxiao.im/job/muon)
 
-**Si**m**p**le stateless **VPN**.
+A fast, obscured stateless VPN
 
-## Feature ##
+## Features ##
 
 1. Stateless
 2. Perform naïve obfuscation by compression, padding and delayed transmission
@@ -36,7 +36,7 @@ sudo make install
 install homebrew first, then:
 
 ```bash
-brew install --HEAD ./contrib/homebrew/muon.rb
+brew install --HEAD https://github.com/XiaoxiaoPu/muon/raw/master/contrib/homebrew/muon.rb
 ```
 
 ### 3. Cross compile ###
@@ -50,9 +50,14 @@ export PATH="$PATH:/pato/to/cross/compile/toolchain/"
 build:
 
 ```bash
+# build libmill
 git clone https://github.com/sustrik/libmill.git
 pushd libmill
-./autogen.sh && ./configure && make
+./autogen.sh
+./configure --host=arm-unknown-linux-gnueabihf
+make
+popd
+# build muon
 autoreconf -if
 export CPPFLAGS=-I$(pwd)/libmill
 export LDFLAGS=-L$(pwd)/libmill

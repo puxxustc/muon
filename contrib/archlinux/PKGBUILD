@@ -3,7 +3,7 @@
 pkgname=muon-git
 pkgver=r
 pkgrel=1
-pkgdesc="Simple stateless VPN"
+pkgdesc="A fast, obscured stateless VPN"
 arch=('i686' 'x86_64')
 url="https://github.com/XiaoxiaoPu/muon"
 license=('GPL3')
