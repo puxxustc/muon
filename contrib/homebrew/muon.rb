@@ -4,7 +4,6 @@ class Muon < Formula
   head "https://github.com/XiaoxiaoPu/muon.git"
 
   depends_on "libmill"
-
   depends_on "autoconf" => :build
   depends_on "automake" => :build
   depends_on "libtool" => :build

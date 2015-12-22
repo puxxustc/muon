@@ -33,7 +33,7 @@ AC_CHECK_LIB([mill], [go], [AC_SUBST(LIB_MILL)])
 
 # Checks for header files.
 AC_HEADER_ASSERT
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h libmill.h netdb.h pwd.h stddef.h stdint.h stdio.h stdlib.h string.h sys/ioctl.h sys/select.h sys/socket.h sys/stat.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([fcntl.h libmill.h netdb.h pwd.h stddef.h stdint.h stdio.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/stat.h sys/time.h unistd.h])
 
 # Check build target
 case "$host" in
@@ -46,7 +46,7 @@ case "$host" in
         AC_CHECK_HEADER([net/if_utun.h])
         ;;
     *)
-        AC_DEFINE([TARGET_UNKNOWN], ["$host"], [Unknown build target])
+        AC_DEFINE([TARGET_UNKNOWN], ["$host"], [Unsupported build target])
 esac
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -57,12 +57,13 @@ AC_TYPE_SSIZE_T
 AC_TYPE_UINT8_T
 AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
+AC_TYPE_INT64_T
 AC_TYPE_UINT64_T
 AC_CHECK_TYPES([ptrdiff_t])
 
 # Checks for library functions.
 AC_FUNC_FORK
-AC_CHECK_FUNCS([bzero chmake clock_gettime gettimeofday memset select sigaction socket strchr strerror])
+AC_CHECK_FUNCS([bzero memset sigaction socket strchr strerror])
 
 AC_CONFIG_FILES([Makefile
                  src/Makefile])

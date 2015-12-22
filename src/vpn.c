@@ -17,16 +17,12 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>
-#include <netdb.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/select.h>
-#include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
 #include <libmill.h>
@@ -202,13 +198,15 @@ void vpn_stop(void)
 coroutine static void tun_worker(void)
 {
     pbuf_t pbuf;
+    int events;
+    ssize_t n;
     while (1)
     {
-        int events = fdwait(tun, FDW_IN, -1);
+        events = fdwait(tun, FDW_IN, -1);
         if(events & FDW_IN)
         {
             // 从 tun 设备读取 IP 包
-            ssize_t n = tun_read(tun, pbuf.payload, conf->mtu);
+            n = tun_read(tun, pbuf.payload, conf->mtu);
             if (n <= 0)
             {
                 ERROR("tun_read");
@@ -226,9 +224,10 @@ coroutine static void tun_worker(void)
 
 coroutine static void client_hop(void)
 {
+    int port;
     while (1)
     {
-        int port = otp_port(0);
+        port = otp_port(0);
         go(udp_worker(port, 5 * 1000));
         msleep(now() + 500);
     }
@@ -271,9 +270,9 @@ coroutine static void udp_worker(int port, int timeout)
     sock = s;
 
     pbuf_t pbuf;
+    ssize_t n;
     while (1)
     {
-        ssize_t n;
         if (conf->mode == MODE_CLIENT)
         {
             // client
@@ -287,6 +286,11 @@ coroutine static void udp_worker(int port, int timeout)
         if (errno == ETIMEDOUT)
         {
             break;
+        }
+        else if (errno != 0)
+        {
+            ERROR("udprecv");
+            continue;
         }
         if (n < PAYLOAD_OFFSET)
         {
@@ -338,7 +342,7 @@ coroutine static void heartbeat(void)
     pbuf_t pbuf;
     while (1)
     {
-        msleep(now() + 1000);
+        msleep(now() + 500 + rand() % 500);
         srand((unsigned)now());
         pbuf.len = 0;
         go(udp_sender(&pbuf, 1));
@@ -350,9 +354,10 @@ coroutine static void heartbeat(void)
 coroutine static void udp_sender(pbuf_t *pbuf, int times)
 {
     assert(pbuf != NULL);
+    assert(sock != NULL);
 
-    int n = encapsulate(pbuf);
     pbuf_t copy;
+    int n = encapsulate(pbuf);
     memcpy(&copy, pbuf, n);
     if (conf->delay > 0)
     {
@@ -361,7 +366,7 @@ coroutine static void udp_sender(pbuf_t *pbuf, int times)
     udpsend(sock, remote, &copy, n);
     while (times > 1)
     {
-        msleep(now() + 20 + rand() % 20);
+        msleep(now() + 5 + rand() % 10);
         udpsend(sock, remote, &copy, n);
         times--;
     }
@@ -456,6 +461,7 @@ static int encapsulate(pbuf_t *pbuf)
 
     // 加密
     ssize_t n = PAYLOAD_OFFSET + pbuf->len + pbuf->padding;
+    assert(n < (ssize_t)sizeof(pbuf->payload));
     crypto_encrypt(pbuf);
 
     return (int)n;
@@ -466,6 +472,7 @@ static int encapsulate(pbuf_t *pbuf)
 static int decapsulate(pbuf_t *pbuf, int n)
 {
     assert(pbuf != NULL);
+    assert(n < (int)sizeof(pbuf->payload));
 
     // 解密
     int invalid = crypto_decrypt(pbuf, n);
@@ -500,6 +507,7 @@ static int decapsulate(pbuf_t *pbuf, int n)
         // 暂不处理 ack flag
     }
 
+    assert(pbuf->len < sizeof(pbuf->payload));
     return (int)(pbuf->len);
 }
 
