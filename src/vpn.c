@@ -297,10 +297,11 @@ coroutine static void udp_worker(int port, int timeout)
             continue;
         }
 
-        // 解密
+        // decrypt, decompress
         n = decapsulate(&pbuf, n);
         if (n < 0)
         {
+            // invalid packet
             if (conf->mode == MODE_CLIENT)
             {
                 LOG("invalid packet, drop");
@@ -312,8 +313,17 @@ coroutine static void udp_worker(int port, int timeout)
             }
             continue;
         }
-        else if (n == 0)
+
+        // update active socket, remote address
+        if (conf->mode == MODE_SERVER)
         {
+            sock = s;
+            remote = addr;
+        }
+
+        if (n == 0)
+        {
+            // heartbeat
             continue;
         }
 
@@ -323,13 +333,6 @@ coroutine static void udp_worker(int port, int timeout)
         if (n < 0)
         {
             ERROR("tun_write");
-        }
-
-        // 更新 remote address
-        if (conf->mode == MODE_SERVER)
-        {
-            sock = s;
-            remote = addr;
         }
     }
     udpclose(s);
