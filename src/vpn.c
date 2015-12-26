@@ -19,13 +19,14 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <libmill.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
-#include <libmill.h>
 #include "conf.h"
 #include "compress.h"
 #include "crypto.h"
@@ -526,7 +527,9 @@ static int otp_port(int offset)
 
     char s[17];
     uint8_t d[8];
-    sprintf(s, "%016llx", (unsigned long long)now() / 500 + offset);
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    sprintf(s, "%016llx", (unsigned long long)(tv.tv_sec * 1000 + tv.tv_usec / 1000) / 500 + offset);
     hmac_md5(d, conf->key, conf->klen, s, 16);
     int port = 0;
     for (int i = 0; i < 8; i++)
