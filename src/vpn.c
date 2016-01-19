@@ -329,7 +329,6 @@ coroutine static void udp_worker(int port, int timeout)
         }
 
         // 写入到 tun 设备
-        assert(pbuf.len < sizeof(pbuf.payload));
         n = tun_write(tun, pbuf.payload, pbuf.len);
         if (n < 0)
         {
@@ -465,7 +464,6 @@ static int encapsulate(pbuf_t *pbuf)
 
     // 加密
     ssize_t n = PAYLOAD_OFFSET + pbuf->len + pbuf->padding;
-    assert(n < (ssize_t)sizeof(pbuf->payload));
     crypto_encrypt(pbuf);
 
     return (int)n;
@@ -476,7 +474,7 @@ static int encapsulate(pbuf_t *pbuf)
 static int decapsulate(pbuf_t *pbuf, int n)
 {
     assert(pbuf != NULL);
-    assert(n < (int)sizeof(pbuf->payload));
+    assert(n <= (int)conf->mtu + PAYLOAD_OFFSET);
 
     // 解密
     int invalid = crypto_decrypt(pbuf, n);
@@ -511,7 +509,7 @@ static int decapsulate(pbuf_t *pbuf, int n)
         // 暂不处理 ack flag
     }
 
-    assert(pbuf->len < sizeof(pbuf->payload));
+    assert(pbuf->len <= conf->mtu);
     return (int)(pbuf->len);
 }
 

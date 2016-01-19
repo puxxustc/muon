@@ -21,7 +21,10 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include "conf.h"
+#include "log.h"
 #include "utils.h"
 #include "vpn.h"
 
@@ -29,10 +32,16 @@
 #  include "config.h"
 #endif
 
+// role == 0 -> master, role == 1 -> worker
+static int role;
+
 static void signal_cb(int signo)
 {
     (void)signo;
-    vpn_stop();
+    if (role == 1)
+    {
+        vpn_stop();
+    }
 }
 
 int main(int argc, char **argv)
@@ -73,5 +82,33 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    return vpn_run();
+    while (1)
+    {
+        int cpid = fork();
+        if (cpid < 0)
+        {
+            LOG("failed to spawn worker process");
+        }
+        else if (cpid == 0)
+        {
+            // worker
+            role = 1;
+            vpn_run();
+            return 0;
+        }
+        else
+        {
+            // master
+            int status;
+            wait(&status);
+            if (WIFEXITED(status))
+            {
+                return 0;
+            }
+            else
+            {
+                LOG("worker terminated unexpectedly, respawn woker");
+            }
+        }
+    }
 }

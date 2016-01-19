@@ -1,0 +1,22 @@
+os:
+    - linux
+    - osx
+language: c
+compiler:
+    - gcc
+    - clang
+before_script:
+    - "mkdir -p m4"
+    - "autoreconf -if"
+script:
+    - "git clone https://github.com/sustrik/libmill.git"
+    - "pushd libmill"
+    - "./autogen.sh"
+    - "./configure"
+    - "make"
+    - "popd"
+    - "autoreconf -if"
+    - "export CPPFLAGS=-I$(pwd)/libmill"
+    - "export LDFLAGS=-L$(pwd)/libmill"
+    - "./configure --prefix=/usr --sysconfdir=/etc"
+    - "make"
