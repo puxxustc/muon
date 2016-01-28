@@ -243,6 +243,12 @@ int crypto_decrypt(pbuf_t *pbuf, size_t len)
     // rc4
     rc4(CRYPTO_START(pbuf), len - sizeof(pbuf->nonce), dec_key);
 
+    // fix too larget pbuf->len
+    if (pbuf->len > sizeof(pbuf->payload))
+    {
+        pbuf->len = sizeof(pbuf->payload);
+    }
+
     // check if chksum == md5(payload)[0:4]
     uint32_t chksum = pbuf->chksum;
     crypto_hash(pbuf);

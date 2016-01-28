@@ -360,8 +360,13 @@ coroutine static void udp_sender(pbuf_t *pbuf, int times)
     assert(sock != NULL);
 
     pbuf_t copy;
-    int n = encapsulate(pbuf);
-    memcpy(&copy, pbuf, n);
+    copy.chksum = pbuf->chksum;
+    copy.ack = pbuf->ack;
+    copy.flag = pbuf->flag;
+    copy.len = pbuf->len;
+    memcpy(copy.payload, pbuf->payload, pbuf->len);
+
+    int n = encapsulate(&copy);
     if (conf->delay > 0)
     {
         msleep(now() + rand() % conf->delay);

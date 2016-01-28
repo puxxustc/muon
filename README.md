@@ -22,7 +22,7 @@ A fast, obscured stateless VPN
 
 ### 1. Linux ###
 
-install GNU Aototools, libmill according to your distribution, then:
+install GNU Autotools, libmill according to your distribution, then:
 
 ```bash
 autoreconf -if
@@ -74,7 +74,7 @@ See man:muon(8).
 
 ## License ##
 
-Copyright (C) 2014 - 2015, Xiaoxiao <i@xiaoxiao.im>
+Copyright (C) 2014 - 2016, Xiaoxiao <i@xiaoxiao.im>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
