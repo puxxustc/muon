@@ -251,7 +251,7 @@ coroutine static void udp_worker(int port, int timeout)
     if (conf->mode == MODE_CLIENT)
     {
         // client
-        addr = iplocal("0.0.0.0", 0, 0);
+        addr = iplocal(NULL, 0, IPADDR_PREF_IPV6);
         remote = ipremote(conf->server, port, 0, 0);
     }
     else
