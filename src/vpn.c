@@ -462,6 +462,7 @@ static int encapsulate(pbuf_t *pbuf)
     crypto_hash(pbuf);
 
     // 混淆
+    pbuf->padding = 0;
     if (!(pbuf->flag & 0x04))
     {
         obfuscate(pbuf);
