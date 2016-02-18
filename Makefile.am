@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = src
+SUBDIRS = src tests
 
 EXTRA_DIST = man/muon.8 contrib/systemd/muon@.service \
              contrib/sample/client.conf \

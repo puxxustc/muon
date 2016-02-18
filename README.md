@@ -51,7 +51,8 @@ build:
 
 ```bash
 # build libmill
-git clone https://github.com/sustrik/libmill.git
+curl -s -L https://github.com/sustrik/libmill/archive/master.tar.gz | tar -zxf -
+mv libmill-master libmill
 pushd libmill
 ./autogen.sh
 ./configure --host=arm-unknown-linux-gnueabihf
@@ -59,10 +60,30 @@ make
 popd
 # build muon
 autoreconf -if
-export CPPFLAGS=-I$(pwd)/libmill
-export LDFLAGS=-L$(pwd)/libmill
+export CPPFLAGS=-I$(pwd)/libmill/.libs
+export LDFLAGS=-L$(pwd)/libmill/.libs
 ./configure --host=arm-unknown-linux-gnueabihf \
     --prefix=/usr --sysconfdir=/etc
+make
+```
+
+
+### 4. Build with static linking ###
+
+```bash
+# build libmill
+curl -s -L https://github.com/sustrik/libmill/archive/master.tar.gz | tar -zxf -
+mv libmill-master libmill
+pushd libmill
+./autogen.sh
+./configure
+make
+popd
+# build muon
+autoreconf -if
+export CPPFLAGS=-I$(pwd)/libmill/.libs
+export LDFLAGS=-L$(pwd)/libmill/.libs
+./configure --prefix=/usr --sysconfdir=/etc --enable-static
 make
 ```
 

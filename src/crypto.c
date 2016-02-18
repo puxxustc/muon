@@ -33,7 +33,7 @@
 #define SWAP(x, y) do {register uint8_t tmp = (x); (x) = (y); (y) = tmp; } while (0)
 
 
-static void rc4(void *stream, size_t len, const void *key)
+void rc4(void *stream, size_t len, const void *key)
 {
     register int i, j;
     uint8_t s[256];

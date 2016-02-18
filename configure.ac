@@ -8,12 +8,12 @@ AC_CONFIG_HEADERS([config.h])
 
 AC_CONFIG_AUX_DIR([.])
 AC_CONFIG_MACRO_DIR([m4])
+AC_CANONICAL_HOST
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 
 # Checks for programs.
 AC_PROG_CC_C99
 AC_PROG_INSTALL
-LT_INIT
 
 # Custom options
 AC_ARG_ENABLE(
@@ -66,5 +66,6 @@ AC_FUNC_FORK
 AC_CHECK_FUNCS([bzero gettimeofday memmove memset sigaction socket strchr strerror])
 
 AC_CONFIG_FILES([Makefile
-                 src/Makefile])
+                 src/Makefile
+                 tests/Makefile])
 AC_OUTPUT

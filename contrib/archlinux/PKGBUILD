@@ -14,18 +14,23 @@ source=("git+https://github.com/XiaoxiaoPu/muon.git")
 sha256sums=('SKIP')
 
 pkgver() {
-	cd "${srcdir}/muon"
-	echo "r$(git rev-list --count HEAD)"
+    cd "${srcdir}/muon"
+    echo "r$(git rev-list --count HEAD)"
 }
 
 build() {
-	cd "${srcdir}/muon"
-	autoreconf -if
-	./configure --prefix=/usr --sysconfdir=/etc
-	make
+    cd "${srcdir}/muon"
+    autoreconf -if
+    ./configure --prefix=/usr --sysconfdir=/etc
+    make
+}
+
+check() {
+    cd "${srcdir}/muon"
+    make check
 }
 
 package() {
-	cd "${srcdir}/muon"
-	make DESTDIR="${pkgdir}/" install
+    cd "${srcdir}/muon"
+    make DESTDIR="${pkgdir}/" install
 }
