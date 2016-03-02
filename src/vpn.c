@@ -138,6 +138,11 @@ int vpn_init(const conf_t *config)
 
 int vpn_run(void)
 {
+    go(tun_worker());
+
+    // keepalive
+    go(heartbeat());
+
     if (conf->mode == MODE_CLIENT)
     {
         go(client_hop());
@@ -149,11 +154,6 @@ int vpn_run(void)
             go(udp_worker(i, -1));
         }
     }
-
-    go(tun_worker());
-
-    // keepalive
-    go(heartbeat());
 
     running = 1;
     while (running)
@@ -235,6 +235,7 @@ coroutine static void client_hop(void)
 }
 
 
+static int ports[40];
 coroutine static void udp_worker(int port, int timeout)
 {
     int64_t deadline;
@@ -283,6 +284,25 @@ coroutine static void udp_worker(int port, int timeout)
         {
             // server
             n = udprecv(s, &addr, &pbuf, conf->mtu + PAYLOAD_OFFSET, deadline);
+            int port = udpport(s);
+            int i;
+            for (i = 0; i < (int)(sizeof(ports) / sizeof(ports[0])); i++)
+            {
+                if (port == ports[i])
+                {
+                    break;
+                }
+            }
+            if (i >= (int)(sizeof(ports) / sizeof(ports[0])))
+            {
+                char buf[IPADDR_MAXSTRLEN];
+                ipaddrstr(addr, buf);
+                if (strcmp(buf, "127.0.0.1") != 0)
+                {
+                    LOG("wrong packet from %s, drop", buf);
+                }
+                continue;
+            }
         }
         if (errno == ETIMEDOUT)
         {
@@ -342,10 +362,21 @@ coroutine static void udp_worker(int port, int timeout)
 // 发送心跳包
 coroutine static void heartbeat(void)
 {
+    for (int i = 0; i < (int)(sizeof(ports) / sizeof(ports[0])); i++)
+    {
+        ports[i] = otp_port(i - sizeof(ports) / sizeof(ports[0]) / 2);
+    }
+
     pbuf_t pbuf;
     while (1)
     {
-        msleep(now() + 500 + rand() % 500);
+        msleep(now() + 500);
+
+        for (int i = 0; i < (int)(sizeof(ports) / sizeof(ports[0])); i++)
+        {
+            ports[i] = otp_port(i - sizeof(ports) / sizeof(ports[0]) / 2);
+        }
+
         srand((unsigned)now());
         pbuf.len = 0;
         go(udp_sender(&pbuf, 1));

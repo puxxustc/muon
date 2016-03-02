@@ -60,7 +60,7 @@ make
 popd
 # build muon
 autoreconf -if
-export CPPFLAGS=-I$(pwd)/libmill/.libs
+export CPPFLAGS=-I$(pwd)/libmill
 export LDFLAGS=-L$(pwd)/libmill/.libs
 ./configure --host=arm-unknown-linux-gnueabihf \
     --prefix=/usr --sysconfdir=/etc
@@ -81,7 +81,7 @@ make
 popd
 # build muon
 autoreconf -if
-export CPPFLAGS=-I$(pwd)/libmill/.libs
+export CPPFLAGS=-I$(pwd)/libmill
 export LDFLAGS=-L$(pwd)/libmill/.libs
 ./configure --prefix=/usr --sysconfdir=/etc --enable-static
 make
