@@ -5,18 +5,32 @@ language: c
 compiler:
     - gcc
     - clang
-before_script:
-    - "mkdir -p m4"
-    - "autoreconf -if"
+addons:
+    apt:
+        packages:
+            - tree
+before_install:
+    - "brew update || true"
+    - "brew install tree || true"
 script:
-    - "git clone https://github.com/sustrik/libmill.git"
+    - "curl -s -L https://github.com/sustrik/libmill/archive/master.tar.gz | tar -zxf -"
+    - "mv libmill-master libmill"
     - "pushd libmill"
+    - "libtoolize || true"
     - "./autogen.sh"
     - "./configure"
     - "make"
+    - "rm .libs/*so* .libs/libmill.la || true"
     - "popd"
+    - "mkdir -p m4"
     - "autoreconf -if"
     - "export CPPFLAGS=-I$(pwd)/libmill"
-    - "export LDFLAGS=-L$(pwd)/libmill"
+    - "export LDFLAGS=-L$(pwd)/libmill/.libs"
+    - "export LIBS=-lrt"
     - "./configure --prefix=/usr --sysconfdir=/etc"
     - "make"
+    - "make DESTDIR=$(pwd)/dist/ install"
+    - "tree $(pwd)/dist/"
+    - "make dist"
+    - "make dist-xz"
+    - "make dist-zip"

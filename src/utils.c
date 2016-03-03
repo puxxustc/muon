@@ -17,9 +17,10 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <netdb.h>
+#include <libmill.h>
 #include <pwd.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -166,67 +167,61 @@ int route(const char *tunif, const char *server, int ipv4, int ipv6)
     if (ipv4)
     {
         // 解析服务器地址
-        struct addrinfo hints;
-        struct addrinfo *res;
-        bzero(&hints, sizeof(struct addrinfo));
-        hints.ai_family = AF_UNSPEC;
-        hints.ai_socktype = SOCK_DGRAM;
-        hints.ai_protocol = IPPROTO_UDP;
-        if (getaddrinfo(server, "0", &hints, &res) != 0)
+        ipaddr addr = ipremote(server, 0, IPADDR_IPV4, -1);
+        if (errno != 0)
         {
             return -1;
         }
-
-        if (res->ai_addr->sa_family == AF_INET)
+        char buf[IPADDR_MAXSTRLEN];
+        ipaddrstr(addr, buf);
+        uint32_t ip;
+        inet_pton(AF_INET, buf, &ip);
+        ip = ntohl(ip);
+        char subnet[32];
+        uint32_t start = 0U;
+        int mask = 1;
+        while (mask <= 32)
         {
-            char subnet[32];
-            uint32_t ip = ntohl(((struct sockaddr_in *)(res->ai_addr))->sin_addr.s_addr);
-            uint32_t start = 0U;
-            int mask = 1;
-            while (mask <= 32)
+            if ((uint64_t)start + (1U << (32 - mask)) - 1 < ip)
             {
-                if ((uint64_t)start + (1U << (32 - mask)) - 1 < ip)
-                {
-                    sprintf(subnet, "%u.%u.%u.%u/%d", start >> 24, (start >> 16) & 0xff, (start >> 8) & 0xff,
-                            start & 0xff, mask);
-                    start += (1U << (32 - mask));
+                sprintf(subnet, "%u.%u.%u.%u/%d", start >> 24, (start >> 16) & 0xff, (start >> 8) & 0xff,
+                        start & 0xff, mask);
+                start += (1U << (32 - mask));
 #ifdef TARGET_LINUX
-                    sprintf(cmd, "/bin/sh -c \'ip route add %s dev %s\'", subnet, tunif);
+                sprintf(cmd, "/bin/sh -c \'ip route add %s dev %s\'", subnet, tunif);
 #endif
 #ifdef TARGET_DARWIN
-                    sprintf(cmd, "/bin/sh -c \'route add %s -interface %s >/dev/null\'", subnet, tunif);
+                sprintf(cmd, "/bin/sh -c \'route add %s -interface %s >/dev/null\'", subnet, tunif);
 #endif
-                    shell(cmd);
-                }
-                else
-                {
-                    mask++;
-                }
+                shell(cmd);
             }
-            uint32_t end = ~0U;
-            mask = 1;
-            while (mask <= 32)
+            else
             {
-                if ((uint64_t)end - (1U << (32 - mask)) + 1 > ip)
-                {
-                    end -= (1U << (32 - mask));
-                    sprintf(subnet, "%u.%u.%u.%u/%d", (end + 1) >> 24, ((end + 1) >> 16) & 0xff, 
-                            ((end + 1) >> 8) & 0xff, (end + 1) & 0xff, mask);
-#ifdef TARGET_LINUX
-                    sprintf(cmd, "/bin/sh -c \'ip route add %s dev %s\'", subnet, tunif);
-#endif
-#ifdef TARGET_DARWIN
-                    sprintf(cmd, "/bin/sh -c \'route add %s -interface %s >/dev/null\'", subnet, tunif);
-#endif
-                    shell(cmd);
-                }
-                else
-                {
-                    mask++;
-                }
+                mask++;
             }
         }
-        freeaddrinfo(res);
+        uint32_t ip_end = ~0U;
+        mask = 1;
+        while (mask <= 32)
+        {
+            if ((uint64_t)ip_end - (1U << (32 - mask)) + 1 > ip)
+            {
+                ip_end -= (1U << (32 - mask));
+                sprintf(subnet, "%u.%u.%u.%u/%d", (ip_end + 1) >> 24, ((ip_end + 1) >> 16) & 0xff, 
+                        ((ip_end + 1) >> 8) & 0xff, (ip_end + 1) & 0xff, mask);
+#ifdef TARGET_LINUX
+                sprintf(cmd, "/bin/sh -c \'ip route add %s dev %s\'", subnet, tunif);
+#endif
+#ifdef TARGET_DARWIN
+                sprintf(cmd, "/bin/sh -c \'route add %s -interface %s >/dev/null\'", subnet, tunif);
+#endif
+                shell(cmd);
+            }
+            else
+            {
+                mask++;
+            }
+        }
     }
 
     if (ipv6)

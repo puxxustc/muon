@@ -18,6 +18,11 @@ A fast, obscured stateless VPN, inspired by [ShadowVPN](https://github.com/cloww
 1. [libmill](http://libmill.org/)
 
 
+## Third party libraries embeded ##
+
+1. [minilzo](http://www.oberhumer.com/opensource/lzo/#minilzo)
+
+
 ## Build ##
 
 ### 1. Linux ###
@@ -57,6 +62,7 @@ pushd libmill
 ./autogen.sh
 ./configure --host=arm-unknown-linux-gnueabihf
 make
+rm .libs/*so* .libs/libmill.la
 popd
 # build muon
 autoreconf -if
@@ -78,6 +84,7 @@ pushd libmill
 ./autogen.sh
 ./configure
 make
+rm .libs/*so* .libs/libmill.la
 popd
 # build muon
 autoreconf -if

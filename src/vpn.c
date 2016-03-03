@@ -253,13 +253,13 @@ coroutine static void udp_worker(int port, int timeout)
     {
         // client
         addr = iplocal(NULL, 0, IPADDR_PREF_IPV6);
-        remote = ipremote(conf->server, port, 0, 0);
+        remote = ipremote(conf->server, port, 0, -1);
     }
     else
     {
         // server
         addr = iplocal(conf->server, port, 0);
-        remote = ipremote(conf->server, port, 0, 0);
+        remote = ipremote(conf->server, port, 0, -1);
     }
     udpsock s = udplisten(addr);
 
@@ -299,7 +299,7 @@ coroutine static void udp_worker(int port, int timeout)
                 ipaddrstr(addr, buf);
                 if (strcmp(buf, "127.0.0.1") != 0)
                 {
-                    LOG("wrong packet from %s, drop", buf);
+                    LOG("invalid packet from %s:%d", buf, port);
                 }
                 continue;
             }
@@ -330,7 +330,9 @@ coroutine static void udp_worker(int port, int timeout)
             else
             {
                 char buf[IPADDR_MAXSTRLEN];
-                LOG("invalid packet from %s, drop", ipaddrstr(addr, buf));
+                ipaddrstr(addr, buf);
+                int port = udpport(s);
+                LOG("invalid packet from %s:%d", buf, port);
             }
             continue;
         }

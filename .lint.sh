@@ -33,6 +33,6 @@ if [ ${BUG} -lt 1 ]; then
 else
     BUG="${BUG}%20bugs"
 fi
-curl -s -o .lint.svg "https://img.shields.io/badge/lint-${BUG}-${COLOR}.svg?style=flat"
+curl -s -o .lint.svg "https://api.xiaoxiao.im/badge/badge/lint-${BUG}-${COLOR}.svg"
 
 make distclean
