@@ -1,7 +1,7 @@
 /*
  * main.c
  *
- * Copyright (C) 2014 - 2015, Xiaoxiao <i@xiaoxiao.im>
+ * Copyright (C) 2014 - 2016, Xiaoxiao <i@xiaoxiao.im>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

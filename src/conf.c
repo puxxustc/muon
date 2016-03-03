@@ -1,7 +1,7 @@
 /*
  * conf.c - parse config file
  *
- * Copyright (C) 2014 - 2015, Xiaoxiao <i@xiaoxiao.im>
+ * Copyright (C) 2014 - 2016, Xiaoxiao <i@xiaoxiao.im>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "conf.h"
+#include "encapsulate.h"
 #include "md5.h"
-#include "vpn.h"
 
 #ifdef HAVE_CONFIG_H
 #  include "config.h"

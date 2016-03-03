@@ -1,6 +1,5 @@
 os:
     - linux
-    - osx
 language: c
 compiler:
     - gcc
@@ -9,9 +8,6 @@ addons:
     apt:
         packages:
             - tree
-before_install:
-    - "brew update || true"
-    - "brew install tree || true"
 script:
     - "curl -s -L https://github.com/sustrik/libmill/archive/master.tar.gz | tar -zxf -"
     - "mv libmill-master libmill"
