@@ -74,7 +74,7 @@ int main()
             sprintf(hex + j * 2, "%02x", digest[j] & 0xffu);
         }
         hex[32] = '\0';
-        printf("%d:\n%s\n", i, hex);
+        printf("%d:\n%s\n\n", i, hex);
         assert(memcmp(hex, tests[i][2], 32) == 0);
     }
     return 0;

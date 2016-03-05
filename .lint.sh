@@ -3,6 +3,7 @@
 set -e
 
 export CC=/usr/lib/clang-analyzer/scan-build/ccc-analyzer
+autoreconf -ifv
 ./configure
 
 rm -rf .lint

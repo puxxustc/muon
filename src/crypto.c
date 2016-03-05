@@ -148,41 +148,6 @@ void rc4(void *stream, size_t len, const void *key)
           [j] "b" (0)
         : "memory", "ecx", "edx"
     );
-#  elif defined(__arm__)
-#    define RC4_ASM 1
-    __asm__ __volatile__ (
-        "cmp %[stream], %[end]\n\t"
-        "bcs 2f\n\t"
-        "1:\n\t"
-        /* i = (i + 1) & 255; */
-        "add %[i], %[i], #1\n\t"
-        "and %[i], %[i], #255\n\t"
-        /* j = (j + s[i] ) & 255 */
-        "ldrb r4, [%[s], %[i]]\n\t"
-        "add %[j], %[j], r4\n\t"
-        "and %[j], %[j], #255\n\t"
-        /* SWAP(s[i], s[j]); */
-        /* *((uint8_t *)stream) ^= s[(s[i] + s[j]) & 255]; */
-        "ldrb r5, [%[s], %[j]]\n\t"
-        "strb r5, [%[s], %[i]]\n\t"
-        "ldrb r6, [%[stream]]\n\t"
-        "add r5, r5, r4\n\t"
-        "strb r4, [%[s], %[j]]\n\t"
-        "and r5, r5, #255\n\t"
-        "ldrb r7, [%[s], r5]\n\t"
-        "eor r6, r6, r7\n\t"
-        "strb r6, [%[stream]], #1\n\t"
-        "cmp %[stream], %[end]\n\t"
-        "bne 1b\n\t"
-        "2:\n\t"
-        :
-        : [stream] "r"(stream),
-          [end] "r"(stream + len),
-          [s] "r"(s),
-          [i] "r" (0),
-          [j] "r" (0)
-        : "memory", "r4", "r5", "r6", "r7"
-    );
 #  endif
 #endif
 
