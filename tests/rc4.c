@@ -1,7 +1,7 @@
 /*
  * md5.c - test md5
  *
- * Copyright (C) 2014 - 2016, Xiaoxiao <i@xiaoxiao.im>
+ * Copyright (C) 2014 - 2016, Xiaoxiao <i@pxx.io>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -123,7 +123,6 @@ int main()
             hex[j * 2 + 1] = "0123456789abcdef"[buf[j] & 0x0fu];
         }
         hex[test->len * 2] = '\0';
-        printf("%d:\n%s\n", i, hex);
         assert(memcmp(hex, test->result, test->len * 2) == 0);
         rc4(buf, test->len, test->key);
         for (int j = 0; j < test->len; j++)

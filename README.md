@@ -1,71 +1,77 @@
 # muon #
 
 [![Release](https://api.xiaoxiao.im/badge/github/release/XiaoxiaoPu/muon.svg)](https://github.com/XiaoxiaoPu/muon/releases/latest)
-[![License](https://api.xiaoxiao.im/badge/badge/license-GPL%203-blue.svg)](https://www.gnu.org/licenses/gpl.html)
+[![License](https://api.xiaoxiao.im/badge/badge/license-GPL%20v3.0-blue.svg)](https://www.gnu.org/licenses/gpl.html)
 [![Build Status](https://ci.xiaoxiao.im/buildStatus/icon?job=muon)](https://ci.xiaoxiao.im/job/muon)
 
 A fast, obscured stateless VPN, inspired by [ShadowVPN](https://github.com/clowwindy/ShadowVPN) and [GoHop](https://github.com/bigeagle/gohop).
+
 
 ## Features ##
 
 1. Stateless
 2. Perform naïve obfuscation by compression, padding and delayed transmission
-3. Frequent port hopping to escape traffic monitoring
+3. Frequent port hopping every 0.5s to escape traffic monitoring
 
 
 ## Dependencies ##
 
 1. [libmill](http://libmill.org/)
 
-
-## Third party libraries embeded ##
-
-1. [minilzo](http://www.oberhumer.com/opensource/lzo/#minilzo)
+2. [minilzo](http://www.oberhumer.com/opensource/lzo/#minilzo) (embeded)
 
 
 ## Build ##
 
-### 1. Linux ###
+### 1. Linux/OS X ###
 
-install GNU Autotools, libmill according to your distribution, then:
-
-```bash
-autoreconf -if
-./configure --prefix=/usr --sysconfdir=/etc
-make
-sudo make install
-```
-
-### 2. OS X ###
-
-install homebrew first, then:
-
-```bash
-brew install --HEAD https://github.com/XiaoxiaoPu/muon/raw/master/contrib/homebrew/muon.rb
-```
-
-### 3. Cross compile ###
-
-setup cross compile tool chain:
-
-```bash
-export PATH="$PATH:/pato/to/cross/compile/toolchain/"
-```
-
-build:
+install GNU Autotools, then:
 
 ```bash
 # build libmill
 curl -s -L https://github.com/sustrik/libmill/archive/master.tar.gz | tar -zxf -
 mv libmill-master libmill
-pushd libmill
+cd libmill
+./autogen.sh
+./configure
+make
+rm $(ls .libs/* | grep -v "\.a$")
+cd ../
+# build muon
+autoreconf -if
+# export CFLAGS=-march=native
+export CPPFLAGS=-I$(pwd)/libmill
+export LDFLAGS=-L$(pwd)/libmill/.libs
+./configure --prefix=/usr --sysconfdir=/etc
+make
+make check
+sudo make install
+```
+
+on OS X, install via [Homebrew](http://brew.sh/) is also supported:
+
+```bash
+brew install --HEAD https://raw.githubusercontent.com/XiaoxiaoPu/muon/master/contrib/homebrew/muon.rb
+```
+
+
+### 2. Cross compile ###
+
+```bash
+# setup cross compile tool chain:
+export PATH="$PATH:/pato/to/cross/compile/toolchain/bin/"
+# build libmill
+curl -s -L https://github.com/sustrik/libmill/archive/master.tar.gz | tar -zxf -
+mv libmill-master libmill
+cd libmill
 ./autogen.sh
 ./configure --host=arm-unknown-linux-gnueabihf
 make
-rm .libs/*so* .libs/libmill.la
-popd
+rm $(ls .libs/* | grep -v "\.a$")
+cd ../
 # build muon
 autoreconf -if
+# export CFLAGS=-march=native
 export CPPFLAGS=-I$(pwd)/libmill
 export LDFLAGS=-L$(pwd)/libmill/.libs
 ./configure --host=arm-unknown-linux-gnueabihf \
@@ -74,25 +80,9 @@ make
 ```
 
 
-### 4. Build with static linking ###
+### 3. Build with static linking ###
 
-```bash
-# build libmill
-curl -s -L https://github.com/sustrik/libmill/archive/master.tar.gz | tar -zxf -
-mv libmill-master libmill
-pushd libmill
-./autogen.sh
-./configure
-make
-rm .libs/*so* .libs/libmill.la
-popd
-# build muon
-autoreconf -if
-export CPPFLAGS=-I$(pwd)/libmill
-export LDFLAGS=-L$(pwd)/libmill/.libs
-./configure --prefix=/usr --sysconfdir=/etc --enable-static
-make
-```
+append `--enable-static` while running `./configure`.
 
 
 ## Usage ##
@@ -102,7 +92,7 @@ See man:muon(8).
 
 ## License ##
 
-Copyright (C) 2014 - 2016, Xiaoxiao <i@xiaoxiao.im>
+Copyright (C) 2014 - 2016, Xiaoxiao <i@pxx.io>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

@@ -12,6 +12,7 @@ AC_CANONICAL_HOST
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 
 # Checks for programs.
+: ${CFLAGS=""}
 AC_PROG_CC_C99
 AC_PROG_INSTALL
 

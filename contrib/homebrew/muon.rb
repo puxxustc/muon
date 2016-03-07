@@ -16,6 +16,6 @@ class Muon < Formula
   end
 
   test do
-    system "true"
+    system "make check"
   end
 end

@@ -26,6 +26,7 @@ config.sub
 configure
 depcomp
 install-sh
+libmill/
 missing
 src/Makefile
 src/Makefile.in
@@ -34,6 +35,8 @@ stamp-h1
 test-driver
 tests/*.log
 tests/*.trs
+tests/encapsulate
 tests/hmac_md5
 tests/md5
+tests/perf
 tests/rc4

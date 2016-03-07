@@ -1,7 +1,7 @@
 /*
  * md5.c - test md5
  *
- * Copyright (C) 2014 - 2016, Xiaoxiao <i@xiaoxiao.im>
+ * Copyright (C) 2014 - 2016, Xiaoxiao <i@pxx.io>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,7 +46,6 @@ int main()
             sprintf(hex + j * 2, "%02x", digest[j] & 0xffu);
         }
         hex[32] = '\0';
-        printf("%d:\n%s\n\n", i, hex);
         assert(memcmp(hex, tests[i][1], 32) == 0);
     }
     return 0;

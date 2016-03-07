@@ -1,7 +1,7 @@
 /*
  * md5.h - the MD5 Message-Digest Algorithm (RFC 1321)
  *
- * Copyright (C) 2014 - 2016, Xiaoxiao <i@xiaoxiao.im>
+ * Copyright (C) 2014 - 2016, Xiaoxiao <i@pxx.io>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

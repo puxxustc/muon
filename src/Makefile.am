@@ -1,4 +1,4 @@
-AM_CFLAGS = -pipe -W -Wall -fno-strict-aliasing
+AM_CFLAGS = -O3 -pipe -W -Wall -fno-strict-aliasing
 
 bin_PROGRAMS = muon
 
