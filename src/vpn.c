@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include "conf.h"
 #include "compress.h"
+#include "crypto.h"
 #include "encapsulate.h"
 #include "log.h"
 #include "md5.h"
@@ -68,6 +69,9 @@ int vpn_init(const conf_t *config)
     {
         return -1;
     }
+
+    // 初始化加密
+    crypto_init(conf->key);
 
     // 初始化 tun 设备
     tun = tun_new(conf->tunif);
@@ -379,6 +383,7 @@ coroutine static void heartbeat(void)
 
         srand((unsigned)now());
         pbuf.len = 0;
+        pbuf.flag = 0;
         go(udp_sender(&pbuf, 1));
     }
 }
@@ -391,8 +396,6 @@ coroutine static void udp_sender(pbuf_t *pbuf, int times)
     assert(sock != NULL);
 
     pbuf_t copy;
-    copy.chksum = pbuf->chksum;
-    copy.ack = pbuf->ack;
     copy.flag = pbuf->flag;
     copy.len = pbuf->len;
     memcpy(copy.payload, pbuf->payload, pbuf->len);
@@ -422,13 +425,13 @@ static int otp_port(int offset)
     }
 
     char s[17];
-    uint8_t d[8];
+    uint8_t d[16];
     struct timeval tv;
     gettimeofday(&tv, NULL);
     sprintf(s, "%016llx", (unsigned long long)(tv.tv_sec * 1000 + tv.tv_usec / 1000) / 500 + offset);
     hmac_md5(d, conf->key, conf->klen, s, 16);
     int port = 0;
-    for (int i = 0; i < 8; i++)
+    for (int i = 0; i < 16; i++)
     {
         port = (port * 256 + (int)(d[i])) % range;
     }

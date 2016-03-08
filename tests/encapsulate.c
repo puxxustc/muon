@@ -24,6 +24,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include "../src/compress.h"
+#include "../src/crypto.h"
 #include "../src/encapsulate.h"
 
 
@@ -37,6 +38,8 @@ int main()
     {
         return -1;
     }
+
+    crypto_init("8556085d7ff5655a5e09a385c152ea2a");
 
     const int mtu = 1452;
 

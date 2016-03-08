@@ -2,9 +2,22 @@
 
 set -e
 
+
+rm -rf libmill
+curl -s -L https://github.com/sustrik/libmill/archive/master.tar.gz | tar -zxf -
+mv libmill-master libmill
+cd libmill
+./autogen.sh
+./configure
+make
+rm $(ls .libs/* | grep -v "\.a$")
+cd ../
+
 export CC=/usr/lib/clang-analyzer/scan-build/ccc-analyzer
 autoreconf -ifv
-./configure
+export CPPFLAGS=-I$(pwd)/libmill
+export LDFLAGS=-L$(pwd)/libmill/.libs
+./configure --enable-debug
 
 rm -rf .lint
 scan-build -o .lint -analyze-headers --use-cc=clang make

@@ -58,11 +58,13 @@ int tun_new(const char *dev)
     if (*dev != '\0')
     {
         strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+        ifr.ifr_name[sizeof(ifr.ifr_name) - 1] = '\0';
     }
 
     err = ioctl(fd, TUNSETIFF, (void *)&ifr);
     if (err < 0)
     {
+        close(fd);
         return err;
     }
     return fd;

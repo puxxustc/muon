@@ -44,6 +44,8 @@ int main()
         return -1;
     }
 
+    crypto_init("8556085d7ff5655a5e09a385c152ea2a");
+
     const int mtu = 1452;
 
 

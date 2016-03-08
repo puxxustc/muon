@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include "../src/crypto.h"
 
 
 extern void rc4(void *stream, size_t len, const void *key);
