@@ -120,10 +120,11 @@ int main()
         rc4(buf, test->len, test->key);
         for (int j = 0; j < test->len; j++)
         {
-            hex[j * 2] = "0123456789abcdef"[buf[j] >> 4];
-            hex[j * 2 + 1] = "0123456789abcdef"[buf[j] & 0x0fu];
+            sprintf(hex + j * 2, "%02x", buf[j]);
         }
         hex[test->len * 2] = '\0';
+        printf("%s\n%s\n\n", hex, test->result);
+        fflush(stdout);
         assert(memcmp(hex, test->result, test->len * 2) == 0);
         rc4(buf, test->len, test->key);
         for (int j = 0; j < test->len; j++)

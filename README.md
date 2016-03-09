@@ -1,8 +1,8 @@
 # muon #
 
-[![Release](https://api.xiaoxiao.im/badge/github/release/XiaoxiaoPu/muon.svg)](https://github.com/XiaoxiaoPu/muon/releases/latest)
-[![License](https://api.xiaoxiao.im/badge/badge/license-GPL%20v3.0-blue.svg)](https://www.gnu.org/licenses/gpl.html)
-[![Build Status](https://ci.xiaoxiao.im/buildStatus/icon?job=muon)](https://ci.xiaoxiao.im/job/muon)
+[![Release](https://api.pxx.io/badge/github/release/XiaoxiaoPu/muon.svg)](https://github.com/XiaoxiaoPu/muon/releases/latest)
+[![License](https://api.pxx.io/badge/badge/license-GPL%20v3.0-blue.svg)](https://www.gnu.org/licenses/gpl.html)
+[![Build Status](https://ci.pxx.io/buildStatus/icon?job=muon)](https://ci.pxx.io/job/muon)
 
 A fast, obscured stateless VPN, inspired by [ShadowVPN](https://github.com/clowwindy/ShadowVPN) and [GoHop](https://github.com/bigeagle/gohop).
 

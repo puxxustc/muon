@@ -46,6 +46,8 @@ int main()
             sprintf(hex + j * 2, "%02x", digest[j] & 0xffu);
         }
         hex[32] = '\0';
+        printf("%s\n%s\n\n", hex, tests[i][1]);
+        fflush(stdout);
         assert(memcmp(hex, tests[i][1], 32) == 0);
     }
     return 0;

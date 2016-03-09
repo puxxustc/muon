@@ -24,6 +24,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include "../src/compress.h"
+#include "../src/crypto.h"
 #include "../src/encapsulate.h"
 
 

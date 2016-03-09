@@ -18,6 +18,9 @@ make
 rm $(ls .libs/* | grep -v "\.a$")
 cd ../
 
+if [ -f Makefile ]; then
+    make distclean
+fi
 autoreconf -ifv
 export CPPFLAGS=-I$(pwd)/libmill
 export LDFLAGS=-L$(pwd)/libmill/.libs
@@ -32,5 +35,5 @@ curl --form token=${COVERITY_TOKEN} \
     --form email=i@pxx.io \
     --form file=@muon.tgz \
     --form version="0.4.0" \
-    --form description="$(date" \
+    --form description="$(date)" \
     'https://scan.coverity.com/builds?project=XiaoxiaoPu%2Fmuon'

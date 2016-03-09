@@ -17,6 +17,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <arpa/inet.h>
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -193,8 +194,13 @@ void crypto_encrypt(pbuf_t *pbuf)
     uint8_t enc_key[16];
     hmac_md5(enc_key, key, klen, pbuf->nonce, sizeof(pbuf->nonce));
 
+    int len = CRYPTO_LEN(pbuf);
+
+    pbuf->flag = htons(pbuf->flag);
+    pbuf->len = htons(pbuf->len);
+
     // rc4
-    rc4(CRYPTO_START(pbuf), CRYPTO_LEN(pbuf), enc_key);
+    rc4(CRYPTO_START(pbuf), len, enc_key);
 }
 
 
@@ -206,6 +212,9 @@ int crypto_decrypt(pbuf_t *pbuf, size_t len)
 
     // rc4
     rc4(CRYPTO_START(pbuf), len - sizeof(pbuf->nonce), dec_key);
+
+    pbuf->flag = ntohs(pbuf->flag);
+    pbuf->len = ntohs(pbuf->len);
 
     // fix too larget pbuf->len
     if (pbuf->len > sizeof(pbuf->payload))

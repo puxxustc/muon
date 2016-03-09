@@ -13,6 +13,9 @@ make
 rm $(ls .libs/* | grep -v "\.a$")
 cd ../
 
+if [ -f Makefile ]; then
+    make distclean
+fi
 export CC=/usr/lib/clang-analyzer/scan-build/ccc-analyzer
 autoreconf -ifv
 export CPPFLAGS=-I$(pwd)/libmill
@@ -47,6 +50,6 @@ if [ ${BUG} -lt 1 ]; then
 else
     BUG="${BUG}%20bugs"
 fi
-curl -s -o .lint.svg "https://api.xiaoxiao.im/badge/badge/lint-${BUG}-${COLOR}.svg"
+curl -s -o .lint.svg "https://api.pxx.io/badge/badge/lint-${BUG}-${COLOR}.svg"
 
 make distclean

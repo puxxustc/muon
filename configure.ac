@@ -28,6 +28,12 @@ AC_ARG_ENABLE(
     [CFLAGS="$CFLAGS -g -DDEBUG -O0"])
 AM_CONDITIONAL(DEBUG, test x"$debug" = x"true")
 
+# Check endian
+AC_C_BIGENDIAN(
+    [],
+    [CFLAGS="$CFLAGS -DAC_LITTLE_ENDIAN=1"],
+    [])
+
 # Checks for libraries.
 LIB_MILL="-lmill"
 AC_CHECK_LIB([mill], [go], [AC_SUBST(LIB_MILL)])
