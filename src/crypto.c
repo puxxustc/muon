@@ -179,7 +179,7 @@ void crypto_init(const void *_key)
 }
 
 
-void crypto_hash(pbuf_t *pbuf)
+static void crypto_hash(pbuf_t *pbuf)
 {
     // chksum = hmac_md5(payload)[0 ^ 4]
     uint32_t digest[4];
@@ -190,6 +190,9 @@ void crypto_hash(pbuf_t *pbuf)
 
 void crypto_encrypt(pbuf_t *pbuf)
 {
+    // 计算 hash
+    crypto_hash(pbuf);
+
     // enc_key = hmac_md5(key, nonce)
     uint8_t enc_key[16];
     hmac_md5(enc_key, key, klen, pbuf->nonce, sizeof(pbuf->nonce));

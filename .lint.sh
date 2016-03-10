@@ -10,32 +10,32 @@ cd libmill
 ./autogen.sh
 ./configure
 make
-rm $(ls .libs/* | grep -v "\.a$")
+rm -f $(ls .libs/* | grep -v "\.a$")
 cd ../
 
 if [ -f Makefile ]; then
     make distclean
 fi
+autoreconf -if
 export CC=/usr/lib/clang-analyzer/scan-build/ccc-analyzer
-autoreconf -ifv
 export CPPFLAGS=-I$(pwd)/libmill
 export LDFLAGS=-L$(pwd)/libmill/.libs
 ./configure --enable-debug
 
 rm -rf .lint
 scan-build -o .lint -analyze-headers --use-cc=clang make
-cd .lint
+cd .lint/
 DIR=$(ls)
 if [[ ${DIR} ]]; then
     mv ${DIR}/* ./
     rmdir ${DIR}
 fi
-cd ..
+cd ../
 
 if [ -f .lint/index.html ]; then
     BUG=$(cat .lint/index.html | grep 'All Bugs' | tr '><' '\n' | grep '[0-9]')
 else
-    echo 'No bugs found.' > .lint/index.html
+    echo 'No warning found.' > .lint/index.html
     BUG=0
 fi
 if [ ${BUG} -lt 3 ]; then
@@ -46,9 +46,9 @@ else
     COLOR=red
 fi
 if [ ${BUG} -lt 1 ]; then
-    BUG="${BUG}%20bug"
+    BUG="${BUG}%20warning"
 else
-    BUG="${BUG}%20bugs"
+    BUG="${BUG}%20warnings"
 fi
 curl -s -o .lint.svg "https://api.pxx.io/badge/badge/lint-${BUG}-${COLOR}.svg"
 

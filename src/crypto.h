@@ -25,7 +25,6 @@
 
 
 extern void crypto_init(const void *psk);
-extern void crypto_hash(pbuf_t *pbuf);
 extern void crypto_encrypt(pbuf_t *pbuf);
 extern int  crypto_decrypt(pbuf_t *pbuf, size_t len);
 

@@ -104,9 +104,6 @@ int encapsulate(pbuf_t *pbuf, int mtu)
     // 压缩
     compress(pbuf);
 
-    // 计算 hash
-    crypto_hash(pbuf);
-
     // 混淆
     pbuf->padding = 0;
     if (!(pbuf->flag & 0x04))
@@ -134,11 +131,17 @@ int decapsulate(pbuf_t *pbuf, int n)
         return -1;
     }
 
-    // 忽略心跳包
     if (pbuf->len == 0)
     {
+        // 忽略心跳包
         return 0;
     }
+    else if (pbuf->len > sizeof(pbuf->payload))
+    {
+        // 忽略错误的长度
+        return -1;
+    }
+
 
     // 忽略重复的包
     if (is_dup(pbuf->chksum))
