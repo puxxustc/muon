@@ -55,11 +55,6 @@ static void obfuscate(pbuf_t *pbuf, int mtu)
 {
     assert(pbuf != NULL);
 
-    // nonce = rand()[0:8]
-    for (int i = 0; i < 8; i++)
-    {
-        pbuf->nonce[i] = (uint8_t)(rand() & 0xff);
-    }
     // random padding
     if (pbuf->len < mtu)
     {

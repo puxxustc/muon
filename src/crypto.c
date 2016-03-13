@@ -190,6 +190,12 @@ static void crypto_hash(pbuf_t *pbuf)
 
 void crypto_encrypt(pbuf_t *pbuf)
 {
+    // 填充 nonce, nonce = rand()[0:8]
+    for (int i = 0; i < 8; i++)
+    {
+        pbuf->nonce[i] = (uint8_t)(rand() & 0xff);
+    }
+
     // 计算 hash
     crypto_hash(pbuf);
 
