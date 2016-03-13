@@ -10,6 +10,7 @@ ExecStart=/usr/bin/muon -c /etc/muon/%i.conf -d --pidfile /run/muon@%i.pid --log
 PIDFile=/run/muon@%i.pid
 Restart=on-failure
 RestartSec=1
+LimitNOFILE=4096
 
 [Install]
 WantedBy=multi-user.target
