@@ -11,6 +11,7 @@
 *~
 .DS_Store
 .deps/
+.dirstamp
 .lint/
 Makefile
 Makefile.in

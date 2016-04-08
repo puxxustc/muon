@@ -9,7 +9,7 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_AUX_DIR([.])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_HOST
-AM_INIT_AUTOMAKE([foreign -Wall -Werror])
+AM_INIT_AUTOMAKE([foreign subdir-objects -Wall -Werror])
 
 # Checks for programs.
 : ${CFLAGS=""}
@@ -36,7 +36,7 @@ AC_C_BIGENDIAN(
 
 # Checks for libraries.
 LIB_MILL="-lmill"
-AC_CHECK_LIB([mill], [go], [AC_SUBST(LIB_MILL)])
+AC_CHECK_LIB([mill], [now], [AC_SUBST(LIB_MILL)])
 
 # Checks for header files.
 AC_HEADER_ASSERT

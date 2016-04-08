@@ -1,5 +1,5 @@
 /*
- * compress.c - wrap of lzo
+ * compress.c - wrapper of minilzo
  *
  * Copyright (C) 2014 - 2016, Xiaoxiao <i@pxx.io>
  *
@@ -18,9 +18,9 @@
  */
 
 #include <string.h>
+#include <3rd/minilzo.h>
 #include "compress.h"
 #include "log.h"
-#include "minilzo.h"
 
 
 // lzo 算法
