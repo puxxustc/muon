@@ -26,9 +26,8 @@ prepare() {
     mv libmill-master libmill
     cd libmill
     ./autogen.sh
-    ./configure
+    ./configure --enable-shared=false
     make
-    rm $(ls .libs/* | grep -v "\.a$")
 }
 
 build() {

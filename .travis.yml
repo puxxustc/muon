@@ -1,6 +1,8 @@
 os:
     - linux
     - osx
+sudo: required
+dist: trusty
 language: c
 compiler:
     - gcc
@@ -18,9 +20,8 @@ script:
     - 'cd libmill'
     - 'libtoolize || true'
     - './autogen.sh'
-    - './configure'
+    - './configure --enable-shared=false'
     - 'make'
-    - 'rm $(ls .libs/* | grep -v "\.a$")'
     - 'cd ../'
     - 'mkdir -p m4'
     - 'autoreconf -if'

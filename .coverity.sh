@@ -8,9 +8,8 @@ curl -s -L https://github.com/sustrik/libmill/archive/master.tar.gz | tar -zxf -
 mv libmill-master libmill
 cd libmill
 ./autogen.sh
-./configure
+./configure --enable-shared=false
 make
-rm -f $(ls .libs/* | grep -v "\.a$")
 cd ../
 
 if [ -f Makefile ]; then
