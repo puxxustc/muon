@@ -9,15 +9,17 @@ mv libmill-master libmill
 cd libmill
 ./autogen.sh
 ./configure --enable-shared=false
-make
+make libmill.la
 cd ../
 
 if [ -f Makefile ]; then
     make distclean
 fi
 autoreconf -if
-export CPPFLAGS=-I$(pwd)/libmill
-export LDFLAGS=-L$(pwd)/libmill/.libs
+CPPFLAGS=-I$(pwd)/libmill
+export CPPFLAGS
+LDFLAGS=-L$(pwd)/libmill/.libs
+export LDFLAGS
 ./configure --enable-debug
 
 rm -rf cov-int

@@ -9,16 +9,18 @@ mv libmill-master libmill
 cd libmill
 ./autogen.sh
 ./configure --enable-shared=false
-make
+make libmill.la
 cd ../
 
 if [ -f Makefile ]; then
     make distclean
 fi
 autoreconf -if
-export CC=/usr/lib/clang-analyzer/scan-build/ccc-analyzer
-export CPPFLAGS=-I$(pwd)/libmill
-export LDFLAGS=-L$(pwd)/libmill/.libs
+export CC=/usr/lib/clang/ccc-analyzer
+export CPPFLAGS
+CPPFLAGS=-I$(pwd)/libmill
+export LDFLAGS
+LDFLAGS=-L$(pwd)/libmill/.libs
 ./configure --enable-debug
 
 rm -rf .lint

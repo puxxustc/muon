@@ -21,7 +21,7 @@ script:
     - 'libtoolize || true'
     - './autogen.sh'
     - './configure --enable-shared=false'
-    - 'make'
+    - 'make libmill.la'
     - 'cd ../'
     - 'mkdir -p m4'
     - 'autoreconf -if'

@@ -50,6 +50,7 @@ sudo make install
 on OS X, install via [Homebrew](http://brew.sh/) is also supported:
 
 ```bash
+brew install --HEAD libmill
 brew install --HEAD https://raw.githubusercontent.com/XiaoxiaoPu/muon/master/contrib/homebrew/muon.rb
 ```
 
