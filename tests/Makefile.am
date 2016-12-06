@@ -10,4 +10,4 @@ test_encapsulate_LDADD = ../src/crypto.o ../src/compress.o ../src/md5.o \
 perf_LDADD = ../src/crypto.o ../src/compress.o ../src/md5.o \
              ../src/log.o ../src/encapsulate.o ../src/3rd/minilzo.o
 
-TESTS = $(check_PROGRAMS)
+TESTS = test_md5 test_hmac_md5 test_rc4 test_encapsulate

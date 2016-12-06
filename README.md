@@ -1,10 +1,9 @@
 # muon #
 
-[![Release](https://api.pxx.io/badge/github/release/XiaoxiaoPu/muon.svg)](https://github.com/XiaoxiaoPu/muon/releases/latest)
 [![License](https://api.pxx.io/badge/badge/license-GPL%20v3.0-blue.svg)](https://www.gnu.org/licenses/gpl.html)
 [![Build Status](https://ci.pxx.io/buildStatus/icon?job=muon)](https://ci.pxx.io/job/muon)
 
-A fast, obscured stateless VPN, inspired by [ShadowVPN](https://github.com/clowwindy/ShadowVPN) and [GoHop](https://github.com/bigeagle/gohop).
+A fast stateless VPN with simple obfuscation, inspired by [ShadowVPN](https://github.com/clowwindy/ShadowVPN) and [GoHop](https://github.com/bigeagle/gohop).
 
 
 ## Features ##
@@ -14,12 +13,27 @@ A fast, obscured stateless VPN, inspired by [ShadowVPN](https://github.com/cloww
 3. Frequent port hopping every 0.5s to escape traffic monitoring
 
 
+## Supported platforms ##
+
+* GNU/Linux
+* macOS
+
 ## Dependencies ##
 
 1. [libmill](http://libmill.org/)
 
 2. [minilzo](http://www.oberhumer.com/opensource/lzo/#minilzo) (embedded)
 
+
+## Pre-builds ##
+
+Platform  | Architecture | URL
+----------|--------------|----
+GNU/Linux | x86_64       | https://s3.pxx.io/snapshot/muon/muon-x86_64
+&nbsp;    | i686         | https://s3.pxx.io/snapshot/muon/muon-i686
+&nbsp;    | armv6l       | https://s3.pxx.io/snapshot/muon/muon-armv6l
+&nbsp;    | armv7l       | https://s3.pxx.io/snapshot/muon/muon-armv7l
+&nbsp;    | aarch64      | https://s3.pxx.io/snapshot/muon/muon-aarch64
 
 ## Build ##
 
