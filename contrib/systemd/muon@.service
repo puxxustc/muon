@@ -1,5 +1,5 @@
 [Unit]
-Description=A fast, obscured stateless VPN
+Description=A fast stateless VPN with simple obfuscation
 After=network.target
 Documentation=man:muon(8)
 

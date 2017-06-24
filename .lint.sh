@@ -51,6 +51,6 @@ if [ ${BUG} -lt 1 ]; then
 else
     BUG="${BUG}%20warnings"
 fi
-curl -s -o .lint.svg "https://api.pxx.io/badge/badge/lint-${BUG}-${COLOR}.svg"
+curl -s -o .lint.svg "https://a.pxx.io/badge/badge/lint-${BUG}-${COLOR}.svg"
 
 make distclean

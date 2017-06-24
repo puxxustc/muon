@@ -1,6 +1,6 @@
 # muon #
 
-[![License](https://api.pxx.io/badge/badge/license-GPL%20v3.0-blue.svg)](https://www.gnu.org/licenses/gpl.html)
+[![License](https://a.pxx.io/badge/badge/license-GPL%20v3.0-blue.svg)](https://www.gnu.org/licenses/gpl.html)
 [![Build Status](https://ci.pxx.io/buildStatus/icon?job=muon)](https://ci.pxx.io/job/muon)
 
 A fast stateless VPN with simple obfuscation, inspired by [ShadowVPN](https://github.com/clowwindy/ShadowVPN) and [GoHop](https://github.com/bigeagle/gohop).
@@ -30,14 +30,13 @@ A fast stateless VPN with simple obfuscation, inspired by [ShadowVPN](https://gi
 Platform  | Architecture | URL
 ----------|--------------|----
 GNU/Linux | x86_64       | https://s3.pxx.io/snapshot/muon/muon-x86_64
-&nbsp;    | i686         | https://s3.pxx.io/snapshot/muon/muon-i686
 &nbsp;    | armv6l       | https://s3.pxx.io/snapshot/muon/muon-armv6l
 &nbsp;    | armv7l       | https://s3.pxx.io/snapshot/muon/muon-armv7l
 &nbsp;    | aarch64      | https://s3.pxx.io/snapshot/muon/muon-aarch64
 
 ## Build ##
 
-### 1. Linux/OS X ###
+### 1. Linux/macOS ###
 
 install GNU Autotools, then:
 
@@ -61,7 +60,7 @@ make check
 sudo make install
 ```
 
-on OS X, install via [Homebrew](http://brew.sh/) is also supported:
+on macOS, install via [Homebrew](https://brew.sh/) is also supported:
 
 ```bash
 brew install --HEAD libmill
@@ -105,7 +104,7 @@ See man:muon(8).
 
 ## License ##
 
-Copyright (C) 2014 - 2016, Xiaoxiao <i@pxx.io>
+Copyright (C) 2014 - 2017, Xiaoxiao <i@pxx.io>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

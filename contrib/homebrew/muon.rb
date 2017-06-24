@@ -1,5 +1,5 @@
 class Muon < Formula
-  desc "A fast, obscured stateless VPN"
+  desc "A fast stateless VPN with simple obfuscation"
   homepage "https://github.com/XiaoxiaoPu/muon"
   head "https://github.com/XiaoxiaoPu/muon.git"
 
