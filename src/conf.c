@@ -29,7 +29,7 @@
 #  include "config.h"
 #else
 #  define PACKAGE "muon"
-#  define PACKAGE_BUGREPORT "https://github.com/XiaoxiaoPu/muon/issues"
+#  define PACKAGE_BUGREPORT "https://github.com/puxxustc/muon/issues"
 #  define VERSION "0.1.0"
 #endif
 

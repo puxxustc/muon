@@ -64,7 +64,7 @@ on macOS, install via [Homebrew](https://brew.sh/) is also supported:
 
 ```bash
 brew install --HEAD libmill
-brew install --HEAD https://raw.githubusercontent.com/XiaoxiaoPu/muon/master/contrib/homebrew/muon.rb
+brew install --HEAD https://raw.githubusercontent.com/puxxustc/muon/master/contrib/homebrew/muon.rb
 ```
 
 

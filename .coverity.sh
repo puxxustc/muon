@@ -33,7 +33,7 @@ if [[ ${COVERITY_TOKEN} ]]; then
         --form file=@muon.tgz \
         --form version="0.4.0" \
         --form description="muon" \
-        'https://scan.coverity.com/builds?project=XiaoxiaoPu%2Fmuon'
+        'https://scan.coverity.com/builds?project=puxxustc%2Fmuon'
 else
     echo 'COVERITY_TOKEN not set, do not submit build'
 fi

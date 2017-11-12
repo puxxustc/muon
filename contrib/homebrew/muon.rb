@@ -1,7 +1,7 @@
 class Muon < Formula
   desc "A fast stateless VPN with simple obfuscation"
-  homepage "https://github.com/XiaoxiaoPu/muon"
-  head "https://github.com/XiaoxiaoPu/muon.git"
+  homepage "https://github.com/puxxustc/muon"
+  head "https://github.com/puxxustc/muon.git"
 
   depends_on "libmill"
   depends_on "autoconf" => :build
