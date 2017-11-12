@@ -45,17 +45,23 @@ static const conf_t *conf;
 
 static volatile int running;
 static int tun;
-static udpsock sock;
-ipaddr remote;
+
+#define POOL 40
+
+static struct {
+    udpsock sock;
+    ipaddr remote;
+    int ports[POOL];
+} paths[PATH_MAX_COUNT];
 
 
 coroutine static void tun_worker(void);
-coroutine static void udp_worker(int port, int timeout);
+coroutine static void udp_worker(int path, int port, int timeout);
 coroutine static void udp_sender(pbuf_t *pbuf, int times);
 coroutine static void client_hop(void);
 coroutine static void heartbeat(void);
 
-static int otp_port(int offset);
+static int otp_port(int path, int offset);
 
 
 int vpn_init(const conf_t *config)
@@ -101,9 +107,12 @@ int vpn_init(const conf_t *config)
         if (conf->route)
         {
             // 配置路由表
-            if (route(conf->tunif, conf->server, conf->address[0], conf->address6[0]) != 0)
+            for (int i = 0; i < conf->path_count; i++)
             {
-                LOG("failed to setup route");
+                if (route(conf->tunif, conf->paths[i].server, conf->address[0], conf->address6[0]) != 0)
+                {
+                    LOG("failed to setup route");
+                }
             }
         }
     }
@@ -151,9 +160,12 @@ int vpn_run(void)
     }
     else
     {
-        for (int i = conf->port[0]; i <= conf->port[1]; i++)
+        for (int i = 0; i < conf->path_count; i++)
         {
-            go(udp_worker(i, -1));
+            for (int j = conf->paths[i].port[0]; j <= conf->paths[i].port[1]; j++)
+            {
+                go(udp_worker(i, j, -1));
+            }
         }
     }
 
@@ -227,18 +239,19 @@ coroutine static void tun_worker(void)
 
 coroutine static void client_hop(void)
 {
-    int port;
     while (1)
     {
-        port = otp_port(0);
-        go(udp_worker(port, 5 * 1000));
+        for (int i = 0; i < conf->path_count; i++) {
+            int port;
+            port = otp_port(i, 0);
+            go(udp_worker(i, port, 5 * 1000));
+        }
         msleep(now() + 500);
     }
 }
 
 
-static int ports[40];
-coroutine static void udp_worker(int port, int timeout)
+coroutine static void udp_worker(int path, int port, int timeout)
 {
     int64_t deadline;
     if (timeout < 0)
@@ -255,13 +268,13 @@ coroutine static void udp_worker(int port, int timeout)
     {
         // client
         addr = iplocal(NULL, 0, IPADDR_PREF_IPV6);
-        remote = ipremote(conf->server, port, 0, -1);
+        paths[path].remote = ipremote(conf->paths[path].server, port, 0, -1);
     }
     else
     {
         // server
-        addr = iplocal(conf->server, port, 0);
-        remote = ipremote(conf->server, port, 0, -1);
+        addr = iplocal(conf->paths[path].server, port, 0);
+        paths[path].remote = ipremote(conf->paths[path].server, port, 0, -1);
     }
     udpsock s = udplisten(addr);
 
@@ -271,7 +284,7 @@ coroutine static void udp_worker(int port, int timeout)
         return;
     }
 
-    sock = s;
+    paths[path].sock = s;
 
     pbuf_t pbuf;
     ssize_t n;
@@ -288,14 +301,14 @@ coroutine static void udp_worker(int port, int timeout)
             n = udprecv(s, &addr, &pbuf, conf->mtu + PAYLOAD_OFFSET, deadline);
             int port = udpport(s);
             int i;
-            for (i = 0; i < (int)(sizeof(ports) / sizeof(ports[0])); i++)
+            for (i = 0; i < POOL; i++)
             {
-                if (port == ports[i])
+                if (port == paths[path].ports[i])
                 {
                     break;
                 }
             }
-            if (i >= (int)(sizeof(ports) / sizeof(ports[0])))
+            if (i >= POOL)
             {
                 char buf[IPADDR_MAXSTRLEN];
                 ipaddrstr(addr, buf);
@@ -342,8 +355,8 @@ coroutine static void udp_worker(int port, int timeout)
         // update active socket, remote address
         if (conf->mode == MODE_SERVER)
         {
-            sock = s;
-            remote = addr;
+            paths[path].sock = s;
+            paths[path].remote = addr;
         }
 
         if (n == 0)
@@ -366,9 +379,11 @@ coroutine static void udp_worker(int port, int timeout)
 // 发送心跳包
 coroutine static void heartbeat(void)
 {
-    for (int i = 0; i < (int)(sizeof(ports) / sizeof(ports[0])); i++)
-    {
-        ports[i] = otp_port(i - sizeof(ports) / sizeof(ports[0]) / 2);
+    for (int path = 0; path < conf->path_count; path++) {
+        for (int i = 0; i < POOL; i++)
+        {
+            paths[path].ports[i] = otp_port(path, i - POOL / 2);
+        }
     }
 
     pbuf_t pbuf;
@@ -376,15 +391,17 @@ coroutine static void heartbeat(void)
     {
         msleep(now() + 500);
 
-        for (int i = 0; i < (int)(sizeof(ports) / sizeof(ports[0])); i++)
-        {
-            ports[i] = otp_port(i - sizeof(ports) / sizeof(ports[0]) / 2);
-        }
+        for (int path = 0; path < conf->path_count; path++) {
+            for (int i = 0; i < POOL; i++)
+            {
+                paths[path].ports[i] = otp_port(path, i - POOL / 2);
+            }
 
-        srand((unsigned)now());
-        pbuf.len = 0;
-        pbuf.flag = 0;
-        go(udp_sender(&pbuf, 1));
+            srand((unsigned)now());
+            pbuf.len = 0;
+            pbuf.flag = 0;
+            go(udp_sender(&pbuf, 1));
+        }
     }
 }
 
@@ -393,7 +410,19 @@ coroutine static void heartbeat(void)
 coroutine static void udp_sender(pbuf_t *pbuf, int times)
 {
     assert(pbuf != NULL);
-    assert(sock != NULL);
+
+    double r = (double)rand() / (double)(RAND_MAX);
+    int path;
+    for (path = 0; path < conf->path_count; path++)
+    {
+        r -= conf->paths[path].weight;
+        if (r < 0.0)
+        {
+            break;
+        }
+    }
+
+    assert(paths[path].sock != NULL);
 
     pbuf_t copy;
     copy.flag = pbuf->flag;
@@ -405,23 +434,23 @@ coroutine static void udp_sender(pbuf_t *pbuf, int times)
     {
         msleep(now() + rand() % conf->delay);
     }
-    udpsend(sock, remote, &copy, n);
+    udpsend(paths[path].sock, paths[path].remote, &copy, n);
     while (times > 1)
     {
         msleep(now() + 5 + rand() % 10);
-        udpsend(sock, remote, &copy, n);
+        udpsend(paths[path].sock, paths[path].remote, &copy, n);
         times--;
     }
 }
 
 
-static int otp_port(int offset)
+static int otp_port(int path, int offset)
 {
-    int range = conf->port[1] - conf->port[0];
+    int range = conf->paths[path].port[1] - conf->paths[path].port[0];
 
     if (range == 0)
     {
-        return conf->port[0];
+        return conf->paths[path].port[0];
     }
 
     char s[17];
@@ -435,5 +464,5 @@ static int otp_port(int offset)
     {
         port = (port * 256 + (int)(d[i])) % range;
     }
-    return port + conf->port[0];
+    return port + conf->paths[path].port[0];
 }

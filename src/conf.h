@@ -26,6 +26,7 @@
 
 #define MODE_SERVER 1
 #define MODE_CLIENT 2
+#define PATH_MAX_COUNT 8
 
 typedef struct
 {
@@ -39,15 +40,19 @@ typedef struct
     char pidfile[64];
     char logfile[64];
     char user[16];
-    char server[64];
-    int  port[2];
+    struct {
+        char server[64];
+        int port[2];
+        double weight;
+    } paths[PATH_MAX_COUNT];
+    int path_count;
     char key[128];
     int  klen;
     char tunif[16];
-    char address[16];
+    char address[20];
     char address6[64];
 #ifdef TARGET_DARWIN
-    char peer[16];
+    char peer[20];
 #endif
 } conf_t;
 

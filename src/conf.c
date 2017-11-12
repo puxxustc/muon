@@ -136,28 +136,49 @@ int read_conf(const char *file, conf_t *conf)
         }
         else if (strcmp(key, "server") == 0)
         {
-            my_strcpy(conf->server, value);
+            int count = conf->path_count;
+            if (count >= PATH_MAX_COUNT)
+            {
+                fprintf(stderr, "line %d: too many server\n", line_num);
+                fclose(f);
+                return -1;
+            }
+            if (count != 0 && conf->paths[count - 1].port[0] == 0)
+            {
+                fprintf(stderr, "line %d: missing port in last server config\n", line_num);
+                fclose(f);
+                return -1;
+            }
+            my_strcpy(conf->paths[count].server, value);
+            conf->path_count++;
         }
         else if (strcmp(key, "port") == 0)
         {
             char *p = strchr(value, '-');
+            int port[2];
             if (p == NULL)
             {
-                conf->port[0] = atoi(value);
-                conf->port[1] = conf->port[0];
+                port[0] = atoi(value);
+                port[1] = port[0];
             }
             else
             {
                 *p = '\0';
-                conf->port[0] = atoi(value);
-                conf->port[1] = atoi(p + 1);
+                port[0] = atoi(value);
+                port[1] = atoi(p + 1);
             }
-            if (conf->port[0] > conf->port[1])
+            if (port[0] > port[1])
             {
-                int tmp = conf->port[0];
-                conf->port[0] = conf->port[1];
-                conf->port[1] = tmp;
+                fprintf(stderr, "line %d: port range invalid\n", line_num);
+                fclose(f);
+                return -1;
             }
+            conf->paths[conf->path_count - 1].port[0] = port[0];
+            conf->paths[conf->path_count - 1].port[1] = port[1];
+        }
+        else if (strcmp(key, "weight") == 0)
+        {
+            conf->paths[conf->path_count - 1].weight = (double)atoi(value);
         }
         else if (strcmp(key, "key") == 0)
         {
@@ -364,15 +385,33 @@ int parse_args(int argc, char **argv, conf_t *conf)
         fprintf(stderr, "mode not set in config file\n");
         return -1;
     }
-    if (conf->server[0] == '\0')
+    if (conf->path_count == 0)
     {
         fprintf(stderr, "server not set in config file\n");
         return -1;
     }
-    if (conf->port[0] == 0)
+    for (int i = 0; i < conf->path_count; i++)
     {
-        conf->port[0] = 1205;
-        conf->port[1] = 1205;
+        if (conf->paths[i].port[0] == 0) {
+            conf->paths[i].port[0] = 1205;
+            conf->paths[i].port[1] = 1205;
+        }
+    }
+    for (int i = 0; i < conf->path_count; i++)
+    {
+        if (conf->paths[i].weight < 0.00000001) {
+            conf->paths[i].weight = 10;
+            conf->paths[i].weight = 10;
+        }
+    }
+    double sum = 0.0;
+    for (int i = 0; i < conf->path_count; i++)
+    {
+        sum += conf->paths[i].weight;
+    }
+    for (int i = 0; i < conf->path_count; i++)
+    {
+        conf->paths[i].weight /= sum;
     }
     if (conf->key[0] == '\0')
     {
