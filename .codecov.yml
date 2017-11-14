@@ -25,4 +25,4 @@ parsers:
   javascript:
     enable_partials: false
 ignore:
-  - "src/3rd/*"
+  - "3rd/*"

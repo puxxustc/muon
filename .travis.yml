@@ -1,6 +1,5 @@
 os:
     - linux
-    - osx
 sudo: required
 dist: trusty
 language: c
@@ -11,9 +10,6 @@ addons:
     apt:
         packages:
             - tree
-before_install:
-    - 'brew update || true'
-    - 'brew install tree xz || true'
 script:
     - 'curl -s -L https://github.com/sustrik/libmill/archive/master.tar.gz | tar -zxf -'
     - 'mv libmill-master libmill'
