@@ -149,11 +149,6 @@ int vpn_init(const conf_t *config)
 
 int vpn_run(void)
 {
-    go(tun_worker());
-
-    // keepalive
-    go(heartbeat());
-
     if (conf->mode == MODE_CLIENT)
     {
         go(client_hop());
@@ -169,25 +164,30 @@ int vpn_run(void)
         }
     }
 
+    go(tun_worker());
+
+    // keepalive
+    go(heartbeat());
+
     running = 1;
     while (running)
     {
         msleep(now() + 100);
     }
 
-    // regain root privilege
-    if (conf->user[0] != '\0')
-    {
-        if (runas("root") != 0)
-        {
-            ERROR("runas");
-        }
-    }
-
-    // 关闭 NAT
+    // turn off nat
 #ifdef TARGET_LINUX
     if ((conf->mode == MODE_SERVER) && (conf->nat))
     {
+        // regain root privilege
+        if (conf->user[0] != '\0')
+        {
+            if (runas("root") != 0)
+            {
+                ERROR("runas");
+            }
+        }
+
         if (nat(conf->address, 0))
         {
             LOG("failed to turn off NAT");
