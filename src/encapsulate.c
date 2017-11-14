@@ -27,29 +27,6 @@
 #include "encapsulate.h"
 
 
-// 判断一个包是否重复
-#define DUP_LEN 4093
-static int is_dup(uint32_t chksum)
-{
-    static uint32_t hash[DUP_LEN][4];
-
-    int h = (int)(chksum % DUP_LEN);
-    int dup =    (hash[h][0] == chksum)
-              || (hash[h][1] == chksum)
-              || (hash[h][2] == chksum)
-              || (hash[h][3] == chksum);
-
-    if (!dup)
-    {
-        hash[h][3] = hash[h][2];
-        hash[h][2] = hash[h][1];
-        hash[h][1] = hash[h][0];
-        hash[h][0] = chksum;
-    }
-    return dup;
-}
-
-
 // naïve obfuscation
 static void obfuscate(pbuf_t *pbuf, int mtu)
 {
@@ -135,13 +112,6 @@ int decapsulate(pbuf_t *pbuf, int n)
     {
         // 忽略错误的长度
         return -1;
-    }
-
-
-    // 忽略重复的包
-    if (is_dup(pbuf->chksum))
-    {
-        return 0;
     }
 
     // 解压缩
