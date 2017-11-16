@@ -49,6 +49,7 @@ static int tun;
 #define POOL 40
 
 static struct {
+    int alive;
     udpsock sock;
     ipaddr remote;
     int ports[POOL];
@@ -269,12 +270,14 @@ coroutine static void udp_worker(int path, int port, int timeout)
         // client
         addr = iplocal(NULL, 0, IPADDR_PREF_IPV6);
         paths[path].remote = ipremote(conf->paths[path].server, port, 0, -1);
+        paths[path].alive = 1;
     }
     else
     {
         // server
         addr = iplocal(conf->paths[path].server, port, 0);
         paths[path].remote = ipremote(conf->paths[path].server, port, 0, -1);
+        paths[path].alive = 1;
     }
     udpsock s = udplisten(addr);
 
@@ -423,6 +426,11 @@ coroutine static void udp_sender(pbuf_t *pbuf, int times)
     }
 
     assert(paths[path].sock != NULL);
+
+    if (!paths[path].alive)
+    {
+        return;
+    }
 
     pbuf_t copy;
     copy.flag = pbuf->flag;
