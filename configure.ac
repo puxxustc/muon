@@ -40,7 +40,7 @@ AC_CHECK_LIB([mill], [now], [AC_SUBST(LIB_MILL)])
 
 # Checks for header files.
 AC_HEADER_ASSERT
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h libmill.h limits.h netdb.h pwd.h stddef.h stdint.h stdio.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/stat.h sys/time.h sys/wait.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h libmill.h limits.h netdb.h pwd.h stddef.h stdint.h stdio.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/stat.h sys/time.h unistd.h])
 
 # Check build target
 case "$host" in

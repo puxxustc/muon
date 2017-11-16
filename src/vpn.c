@@ -173,7 +173,7 @@ int vpn_run(void)
     running = 1;
     while (running)
     {
-        msleep(now() + 100);
+        msleep(now() + 50);
     }
 
     // turn off nat
