@@ -258,25 +258,6 @@ int read_conf(const char *file, conf_t *conf)
                 return -1;
             }
         }
-        else if (strcmp(key, "duplicate") == 0)
-        {
-            if (strcmp(value, "yes") == 0)
-            {
-                conf->duplicate = 2;
-            }
-            else if (strcmp(value, "no") == 0)
-            {
-                conf->duplicate = 0;
-            }
-            else
-            {
-                conf->duplicate = atoi(value);
-                if (conf->duplicate < 0)
-                {
-                    conf->duplicate = 0;
-                }
-            }
-        }
         else if (strcmp(key, "delay") == 0)
         {
             conf->delay = atoi(value);

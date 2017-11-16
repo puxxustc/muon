@@ -36,7 +36,6 @@ typedef struct
     int route;
     int nat;
     int delay;
-    int duplicate;
     char pidfile[64];
     char logfile[64];
     char user[16];

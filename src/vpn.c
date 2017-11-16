@@ -58,7 +58,7 @@ static struct {
 
 coroutine static void tun_worker(void);
 coroutine static void udp_worker(int path, int port, int timeout);
-coroutine static void udp_sender(pbuf_t *pbuf, int times);
+coroutine static void udp_sender(pbuf_t *pbuf);
 coroutine static void client_hop(void);
 coroutine static void heartbeat(void);
 
@@ -232,7 +232,7 @@ coroutine static void tun_worker(void)
             pbuf.flag = 0x0000;
 
             // 发送到 remote
-            go(udp_sender(&pbuf, conf->duplicate));
+            go(udp_sender(&pbuf));
         }
     }
 }
@@ -403,14 +403,14 @@ coroutine static void heartbeat(void)
             srand((unsigned)now());
             pbuf.len = 0;
             pbuf.flag = 0;
-            go(udp_sender(&pbuf, 1));
+            go(udp_sender(&pbuf));
         }
     }
 }
 
 
 // 发送数据包
-coroutine static void udp_sender(pbuf_t *pbuf, int times)
+coroutine static void udp_sender(pbuf_t *pbuf)
 {
     assert(pbuf != NULL);
 
@@ -432,22 +432,20 @@ coroutine static void udp_sender(pbuf_t *pbuf, int times)
         return;
     }
 
-    pbuf_t copy;
-    copy.flag = pbuf->flag;
-    copy.len = pbuf->len;
-    memcpy(copy.payload, pbuf->payload, pbuf->len);
-
-    int n = encapsulate(&copy, conf->mtu);
     if (conf->delay > 0)
     {
+        pbuf_t copy;
+        copy.flag = pbuf->flag;
+        copy.len = pbuf->len;
+        memcpy(copy.payload, pbuf->payload, pbuf->len);
+        int n = encapsulate(&copy, conf->mtu);
         msleep(now() + rand() % conf->delay);
-    }
-    udpsend(paths[path].sock, paths[path].remote, &copy, n);
-    while (times > 1)
-    {
-        msleep(now() + 5 + rand() % 10);
         udpsend(paths[path].sock, paths[path].remote, &copy, n);
-        times--;
+    }
+    else
+    {
+        int n = encapsulate(pbuf, conf->mtu);
+        udpsend(paths[path].sock, paths[path].remote, pbuf, n);
     }
 }
 
