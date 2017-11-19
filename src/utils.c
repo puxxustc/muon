@@ -207,7 +207,7 @@ int route(const char *tunif, const char *server, int ipv4, int ipv6)
             if ((uint64_t)ip_end - (1U << (32 - mask)) + 1 > ip)
             {
                 ip_end -= (1U << (32 - mask));
-                sprintf(subnet, "%u.%u.%u.%u/%d", (ip_end + 1) >> 24, ((ip_end + 1) >> 16) & 0xff, 
+                sprintf(subnet, "%u.%u.%u.%u/%d", (ip_end + 1) >> 24, ((ip_end + 1) >> 16) & 0xff,
                         ((ip_end + 1) >> 8) & 0xff, (ip_end + 1) & 0xff, mask);
 #ifdef TARGET_LINUX
                 sprintf(cmd, "/bin/sh -c \'ip route add %s dev %s\'", subnet, tunif);

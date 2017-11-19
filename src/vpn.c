@@ -19,7 +19,6 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <libmill.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,12 +26,15 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <libmill.h>
+#include <sodium.h>
+
 #include "conf.h"
 #include "compress.h"
 #include "crypto.h"
 #include "encapsulate.h"
 #include "log.h"
-#include "md5.h"
 #include "tunif.h"
 #include "utils.h"
 #include "vpn.h"
@@ -78,7 +80,10 @@ int vpn_init(const conf_t *config)
     }
 
     // 初始化加密
-    crypto_init(conf->key);
+    if (crypto_init(conf->key) != 0)
+    {
+        return -1;
+    }
 
     // 初始化 tun 设备
     tun = tun_new(conf->tunif);
@@ -400,7 +405,6 @@ coroutine static void heartbeat(void)
                 paths[path].ports[i] = otp_port(path, i - POOL / 2);
             }
 
-            srand((unsigned)now());
             pbuf.len = 0;
             pbuf.flag = 0;
             go(udp_sender(&pbuf));
@@ -414,15 +418,10 @@ coroutine static void udp_sender(pbuf_t *pbuf)
 {
     assert(pbuf != NULL);
 
-    double r = (double)rand() / (double)(RAND_MAX);
-    int path;
-    for (path = 0; path < conf->path_count; path++)
+    static int path = 0;
+    if (conf->path_count > 0)
     {
-        r -= conf->paths[path].weight;
-        if (r < 0.0)
-        {
-            break;
-        }
+        path = (path + 1) % conf->path_count;
     }
 
     assert(paths[path].sock != NULL);
@@ -439,7 +438,7 @@ coroutine static void udp_sender(pbuf_t *pbuf)
         copy.len = pbuf->len;
         memcpy(copy.payload, pbuf->payload, pbuf->len);
         int n = encapsulate(&copy, conf->mtu);
-        msleep(now() + rand() % conf->delay);
+        msleep(now() + randombytes_uniform(conf->delay + 1));
         udpsend(paths[path].sock, paths[path].remote, &copy, n);
     }
     else
@@ -464,7 +463,7 @@ static int otp_port(int path, int offset)
     struct timeval tv;
     gettimeofday(&tv, NULL);
     sprintf(s, "%016llx", (unsigned long long)(tv.tv_sec * 1000 + tv.tv_usec / 1000) / 500 + offset);
-    hmac_md5(d, conf->key, conf->klen, s, 16);
+    hmac(d, s, 16);
     int port = 0;
     for (int i = 0; i < 16; i++)
     {

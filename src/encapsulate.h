@@ -51,6 +51,7 @@ typedef struct
 #define PAYLOAD_MAX ((int)(sizeof(pbuf_t) - offsetof(pbuf_t, payload)))
 #define CRYPTO_START(pbuf) (&((pbuf)->chksum))
 #define CRYPTO_LEN(pbuf) (offsetof(pbuf_t, payload) - offsetof(pbuf_t, chksum) + (pbuf)->len + (pbuf)->padding)
+#define CRYPTO_NONCE_LEN ((int)(offsetof(pbuf_t, chksum) - offsetof(pbuf_t, nonce)))
 
 extern int encapsulate(pbuf_t *pbuf, int mtu);
 extern int decapsulate(pbuf_t *pbuf, int n);

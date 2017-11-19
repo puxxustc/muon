@@ -36,11 +36,16 @@ AC_C_BIGENDIAN(
 
 # Checks for libraries.
 LIB_MILL="-lmill"
-AC_CHECK_LIB([mill], [now], [AC_SUBST(LIB_MILL)])
+AC_CHECK_LIB([mill], [mill_now_], [AC_SUBST(LIB_MILL)])
+LIB_SODIUM="-lsodium"
+AC_CHECK_LIB([sodium], [sodium_init], [AC_SUBST(LIB_SODIUM)])
 
 # Checks for header files.
 AC_HEADER_ASSERT
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h libmill.h limits.h netdb.h pwd.h stddef.h stdint.h stdio.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/stat.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h pwd.h stddef.h stdint.h stdio.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/stat.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([libmill.h sodium.h])
+
+
 
 # Check build target
 case "$host" in
@@ -70,7 +75,7 @@ AC_CHECK_TYPES([ptrdiff_t])
 
 # Checks for library functions.
 AC_FUNC_FORK
-AC_CHECK_FUNCS([bzero gettimeofday memmove memset sigaction socket strchr strerror])
+AC_CHECK_FUNCS([gettimeofday memmove memset sigaction socket strchr strerror])
 
 AC_CONFIG_FILES([Makefile
                  src/Makefile

@@ -20,8 +20,10 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <sys/types.h>
+
+#include <sodium.h>
+
 #include "compress.h"
 #include "crypto.h"
 #include "encapsulate.h"
@@ -38,28 +40,25 @@ static void obfuscate(pbuf_t *pbuf, int mtu)
         int max = mtu - pbuf->len;
         if (max > 897)
         {
-            pbuf->padding = rand() % 554;
+            pbuf->padding = randombytes_uniform(554);
         }
         else if (max > 554)
         {
-            pbuf->padding = rand() % 342;
+            pbuf->padding = randombytes_uniform(342);
         }
         else if (max > 342)
         {
-            pbuf->padding = rand() % 211;
+            pbuf->padding = randombytes_uniform(211);
         }
         else
         {
-            pbuf->padding = rand() % 130;
+            pbuf->padding = randombytes_uniform(130);
             if (pbuf->padding > max)
             {
                 pbuf->padding = max;
             }
         }
-        for (int i = (int)(pbuf->len); i < (int)(pbuf->len) + pbuf->padding; i++)
-        {
-            pbuf->payload[i] = (uint8_t)(rand() & 0xff);
-        }
+        randombytes_buf(pbuf->payload + pbuf->len, pbuf->padding);
     }
     else
     {

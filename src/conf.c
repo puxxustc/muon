@@ -23,7 +23,6 @@
 #include <string.h>
 #include "conf.h"
 #include "encapsulate.h"
-#include "md5.h"
 
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
@@ -280,7 +279,7 @@ int parse_args(int argc, char **argv, conf_t *conf)
 {
     const char *conf_file = NULL;
 
-    bzero(conf, sizeof(conf_t));
+    memset(conf, 0, sizeof(conf_t));
 
     for (int i = 1; i < argc; i++)
     {

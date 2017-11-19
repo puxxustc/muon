@@ -22,7 +22,10 @@ A fast stateless VPN with simple obfuscation, inspired by [ShadowVPN](https://gi
 
 1. [libmill](http://libmill.org/)
 
-2. [minilzo](http://www.oberhumer.com/opensource/lzo/#minilzo) (embedded)
+2. [libsodium](https://libsodium.org/)
+
+3. [minilzo](http://www.oberhumer.com/opensource/lzo/#minilzo) (embedded)
+
 
 
 ## Pre-builds ##
@@ -49,11 +52,20 @@ cd libmill
 ./configure --enable-shared=false
 make
 cd ../
+
+# build libsodium
+curl -s -L https://github.com/jedisct1/libsodium/archive/master.tar.gz | tar -zxf -
+mv libsodium-master libsodium
+cd libsodium
+./autogen.sh
+./configure --enable-shared=false
+make
+cd ../
+
 # build muon
 autoreconf -if
-# export CFLAGS=-march=native
-export CPPFLAGS=-I$(pwd)/libmill
-export LDFLAGS=-L$(pwd)/libmill/.libs
+export CPPFLAGS="-I$(pwd)/libmill -I$(pwd)/libsodium/src/libsodium/include"
+export LDFLAGS="-L$(pwd)/libmill/.libs -L$(pwd)/libsodium/src/libsodium/.libs"
 ./configure --prefix=/usr --sysconfdir=/etc
 make
 make check
@@ -64,6 +76,7 @@ on macOS, install via [Homebrew](https://brew.sh/) is also supported:
 
 ```bash
 brew install --HEAD libmill
+brew install libsodium
 brew install --HEAD https://raw.githubusercontent.com/puxxustc/muon/master/contrib/homebrew/muon.rb
 ```
 
@@ -73,21 +86,31 @@ brew install --HEAD https://raw.githubusercontent.com/puxxustc/muon/master/contr
 ```bash
 # setup cross compile tool chain:
 export PATH="$PATH:/pato/to/cross/compile/toolchain/bin/"
+
 # build libmill
 curl -s -L https://github.com/sustrik/libmill/archive/master.tar.gz | tar -zxf -
 mv libmill-master libmill
 cd libmill
 ./autogen.sh
-./configure --enable-shared=false --host=arm-unknown-linux-gnueabihf
+./configure --enable-shared=false --enable-static --host=arm-unknown-linux-gnueabihf
 make
 cd ../
+
+# build libsodium
+curl -s -L https://github.com/jedisct1/libsodium/archive/master.tar.gz | tar -zxf -
+mv libsodium-master libsodium
+cd libsodium
+./autogen.sh
+./configure --enable-shared=false --enable-static --host=arm-unknown-linux-gnueabihf
+make
+cd ../
+
 # build muon
 autoreconf -if
-# export CFLAGS=-march=native
-export CPPFLAGS=-I$(pwd)/libmill
-export LDFLAGS=-L$(pwd)/libmill/.libs
+export CPPFLAGS="-I$(pwd)/libmill -I$(pwd)/libsodium/src/libsodium/include"
+export LDFLAGS="-L$(pwd)/libmill/.libs -L$(pwd)/libsodium/src/libsodium/.libs"
 ./configure --host=arm-unknown-linux-gnueabihf \
-    --prefix=/usr --sysconfdir=/etc
+    --prefix=/usr --sysconfdir=/etc --enable-static
 make
 ```
 

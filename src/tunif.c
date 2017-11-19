@@ -52,7 +52,7 @@ int tun_new(const char *dev)
         return -1;
     }
 
-    bzero(&ifr, sizeof(struct ifreq));
+    memset(&ifr, 0, sizeof(struct ifreq));
 
     ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
     if (*dev != '\0')
