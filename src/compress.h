@@ -1,5 +1,5 @@
 /*
- * compress.h - wrap of lzo
+ * compress.h - wrap of lz4
  *
  * Copyright (C) 2014 - 2016, Xiaoxiao <i@pxx.io>
  *
@@ -23,7 +23,6 @@
 #include "encapsulate.h"
 
 
-extern int compress_init(void);
 extern void compress(pbuf_t *pbuf);
 extern void decompress(pbuf_t *pbuf);
 

@@ -24,7 +24,7 @@ A fast stateless VPN with simple obfuscation, inspired by [ShadowVPN](https://gi
 
 2. [libsodium](https://libsodium.org/)
 
-3. [minilzo](http://www.oberhumer.com/opensource/lzo/#minilzo) (embedded)
+3. [lz4](http://www.lz4.org/)
 
 
 
@@ -49,7 +49,7 @@ curl -s -L https://github.com/sustrik/libmill/archive/master.tar.gz | tar -zxf -
 mv libmill-master libmill
 cd libmill
 ./autogen.sh
-./configure --enable-shared=false
+./configure --enable-shared=false --enable-static
 make
 cd ../
 
@@ -58,15 +58,22 @@ curl -s -L https://github.com/jedisct1/libsodium/archive/master.tar.gz | tar -zx
 mv libsodium-master libsodium
 cd libsodium
 ./autogen.sh
-./configure --enable-shared=false
+./configure --enable-shared=false --enable-static
 make
+cd ../
+
+# build lz4
+curl -s -L https://github.com/lz4/lz4/archive/master.tar.gz | tar -zxf -
+mv lz4-master lz4
+cd lz4
+make -C lib
 cd ../
 
 # build muon
 autoreconf -if
-export CPPFLAGS="-I$(pwd)/libmill -I$(pwd)/libsodium/src/libsodium/include"
-export LDFLAGS="-L$(pwd)/libmill/.libs -L$(pwd)/libsodium/src/libsodium/.libs"
-./configure --prefix=/usr --sysconfdir=/etc
+export CPPFLAGS="-I$(pwd)/lz4/lib -I$(pwd)/libmill -I$(pwd)/libsodium/src/libsodium/include"
+export LDFLAGS="-L$(pwd)/lz4/lib -L$(pwd)/libmill/.libs -L$(pwd)/libsodium/src/libsodium/.libs"
+./configure --prefix=/usr --sysconfdir=/etc --enable-static
 make
 make check
 sudo make install
@@ -76,7 +83,7 @@ on macOS, install via [Homebrew](https://brew.sh/) is also supported:
 
 ```bash
 brew install --HEAD libmill
-brew install libsodium
+brew install libsodium lz4
 brew install --HEAD https://raw.githubusercontent.com/puxxustc/muon/master/contrib/homebrew/muon.rb
 ```
 
@@ -105,19 +112,21 @@ cd libsodium
 make
 cd ../
 
+# build lz4
+curl -s -L https://github.com/lz4/lz4/archive/master.tar.gz | tar -zxf -
+mv lz4-master lz4
+cd lz4
+CC=arm-unknown-linux-gnueabihf-gcc make -C lib
+cd ../
+
 # build muon
 autoreconf -if
-export CPPFLAGS="-I$(pwd)/libmill -I$(pwd)/libsodium/src/libsodium/include"
-export LDFLAGS="-L$(pwd)/libmill/.libs -L$(pwd)/libsodium/src/libsodium/.libs"
+export CPPFLAGS="-I$(pwd)/lz4/lib -I$(pwd)/libmill -I$(pwd)/libsodium/src/libsodium/include"
+export LDFLAGS="-L$(pwd)/lz4/lib -L$(pwd)/libmill/.libs -L$(pwd)/libsodium/src/libsodium/.libs"
 ./configure --host=arm-unknown-linux-gnueabihf \
     --prefix=/usr --sysconfdir=/etc --enable-static
 make
 ```
-
-
-### 3. Build with static linking ###
-
-append `--enable-static` while running `./configure`.
 
 
 ## Usage ##

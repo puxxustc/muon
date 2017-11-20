@@ -77,7 +77,7 @@ int encapsulate(pbuf_t *pbuf, int mtu)
 
     // 混淆
     pbuf->padding = 0;
-    if (!(pbuf->flag & 0x04))
+    if (!(pbuf->flag & FLAG_COMPRESS))
     {
         obfuscate(pbuf, mtu);
     }

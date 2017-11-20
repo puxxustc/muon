@@ -25,18 +25,12 @@
 
 #include <sodium.h>
 
-#include "../src/compress.h"
 #include "../src/crypto.h"
 #include "../src/encapsulate.h"
 
 
 int main()
 {
-    if (compress_init() != 0)
-    {
-        return -1;
-    }
-
     crypto_init("8556085d7ff5655a5e09a385c152ea2a");
 
     const int mtu = 1452;
@@ -61,12 +55,12 @@ int main()
     }
     printf("\n");
 
-    for (int i = 0, c = 0; i < 1024; i++)
+    for (int i = 0, c = 0; i < 512; i++)
     {
         c = (32771 * c + 10007) % 65537;
         pbuf.payload[i] = (c & 0xffu);
     }
-    pbuf.len = 1024;
+    pbuf.len = 512;
     pbuf.flag = 0x0000;
     pbuf.ack = 0;
     n = encapsulate(&pbuf, mtu);
@@ -79,10 +73,9 @@ int main()
     */
 
     uint8_t test1[] =
-        "\x44\xae\x83\x14\x5c\xaf\x38\xb9\x15\x03\x65\xc8\xa1\x88\x1a\x53"
-        "\x70\xf7\x46\x28\xdb\x24\x71\x5c\xa8\x4a\x4b\x4e\xbd\xb2\xb7\x20"
-        "\xe6\x18\x0e\xbf\xe0\x3c\x6b\xfe\x0f\x10\x44\x89\x20\xbd\xce\xbe"
-        "\xc9\xa9\x6b\x6a";
+        "\x75\xfd\x23\xb0\x0f\x47\xa3\x05\x28\x8f\x58\xe8\x62\xca\xf2\x2e"
+        "\x91\x95\xd5\x47\x6a\x73\xab\xf2\x0c\x3c\xa9\x3d\x90\x85\x99\x0d"
+        "\x27\xd7\x90";
     memcpy(&pbuf, test1, sizeof(test1));
     n = decapsulate(&pbuf, sizeof(test1));
     assert(n == 1024);

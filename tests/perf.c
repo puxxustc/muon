@@ -26,7 +26,6 @@
 
 #include <sodium.h>
 
-#include "../src/compress.h"
 #include "../src/crypto.h"
 #include "../src/encapsulate.h"
 
@@ -36,11 +35,6 @@ const int count = 50000;
 
 int main()
 {
-    if (compress_init() != 0)
-    {
-        return -1;
-    }
-
     const char *key = "8556085d7ff5655a5e09a385c152ea2a";
     if (crypto_init(key) != 0)
     {

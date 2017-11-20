@@ -175,10 +175,6 @@ int read_conf(const char *file, conf_t *conf)
             conf->paths[conf->path_count - 1].port[0] = port[0];
             conf->paths[conf->path_count - 1].port[1] = port[1];
         }
-        else if (strcmp(key, "weight") == 0)
-        {
-            conf->paths[conf->path_count - 1].weight = (double)atoi(value);
-        }
         else if (strcmp(key, "key") == 0)
         {
             conf->klen = strlen(value);
@@ -376,22 +372,6 @@ int parse_args(int argc, char **argv, conf_t *conf)
             conf->paths[i].port[0] = 1205;
             conf->paths[i].port[1] = 1205;
         }
-    }
-    for (int i = 0; i < conf->path_count; i++)
-    {
-        if (conf->paths[i].weight < 0.00000001) {
-            conf->paths[i].weight = 10;
-            conf->paths[i].weight = 10;
-        }
-    }
-    double sum = 0.0;
-    for (int i = 0; i < conf->path_count; i++)
-    {
-        sum += conf->paths[i].weight;
-    }
-    for (int i = 0; i < conf->path_count; i++)
-    {
-        conf->paths[i].weight /= sum;
     }
     if (conf->key[0] == '\0')
     {

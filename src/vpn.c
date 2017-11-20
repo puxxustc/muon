@@ -73,19 +73,12 @@ int vpn_init(const conf_t *config)
 
     LOG("starting muon %s", (conf->mode == MODE_SERVER) ? "server" : "client");
 
-    // 初始化 lzo
-    if (compress_init() != 0)
-    {
-        return -1;
-    }
-
-    // 初始化加密
     if (crypto_init(conf->key) != 0)
     {
         return -1;
     }
 
-    // 初始化 tun 设备
+    // create tun device
     tun = tun_new(conf->tunif);
     if (tun < 0)
     {
@@ -94,7 +87,7 @@ int vpn_init(const conf_t *config)
     }
     LOG("using tun device: %s", conf->tunif);
 
-    // 配置 IP 地址
+    // set IP address
 #ifdef TARGET_LINUX
     if (ifconfig(conf->tunif, conf->mtu, conf->address, conf->address6) != 0)
     {
@@ -112,7 +105,7 @@ int vpn_init(const conf_t *config)
     {
         if (conf->route)
         {
-            // 配置路由表
+            // set route table
             for (int i = 0; i < conf->path_count; i++)
             {
                 if (route(conf->tunif, conf->paths[i].server, conf->address[0], conf->address6[0]) != 0)
@@ -131,7 +124,7 @@ int vpn_init(const conf_t *config)
 #ifdef TARGET_LINUX
         if ((conf->nat) && (conf->address[0] != '\0'))
         {
-            // 配置 NAT
+            // turn on NAT
             if (nat(conf->address, 1))
             {
                 LOG("failed to turn on NAT");
@@ -201,7 +194,7 @@ int vpn_run(void)
     }
 #endif
 
-    // 关闭 tun 设备
+    // clean up
     tun_close(tun);
     LOG("close tun device");
 

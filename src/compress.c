@@ -1,5 +1,5 @@
 /*
- * compress.c - wrapper of minilzo
+ * compress.c - wrapper of lz4
  *
  * Copyright (C) 2014 - 2016, Xiaoxiao <i@pxx.io>
  *
@@ -17,63 +17,45 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <assert.h>
 #include <string.h>
-#include <3rd/minilzo.h>
+
+#include <lz4.h>
+
 #include "compress.h"
+#include "encapsulate.h"
 #include "log.h"
 
 
-// lzo 算法
-static void lzo(pbuf_t *pbuf)
-{
-    uint8_t wrkmem[LZO1X_1_MEM_COMPRESS];
-    uint8_t out[2048+2048/16+64+3];
-    lzo_uint olen;
-    lzo1x_1_compress(pbuf->payload, pbuf->len, out, &olen, wrkmem);
-    if (olen < pbuf->len)
-    {
-        memcpy(pbuf->payload, out, olen);
-        pbuf->flag |= 0x04;
-        pbuf->len = olen;
-    }
-}
-
-
-static void unlzo(pbuf_t *pbuf)
-{
-    uint8_t out[2048];
-    lzo_uint olen;
-    lzo1x_decompress(pbuf->payload, pbuf->len, out, &olen, NULL);
-    memcpy(pbuf->payload, out, olen);
-    pbuf->len = olen;
-}
-
-
-int compress_init(void)
-{
-    // 初始化 lzo
-    if (lzo_init() != LZO_E_OK)
-    {
-        LOG("failed to initialize LZO library");
-        return -1;
-    }
-    return 0;
-}
-
-
-
-// 压缩 pbuf
 void compress(pbuf_t *pbuf)
 {
-    lzo(pbuf);
+    uint8_t out[2048];
+    int outlen = LZ4_compress_default(
+        (const char *)(pbuf->payload),
+        (char *)out,
+        pbuf->len,
+        sizeof(out));
+    if ((outlen > 0) && (outlen < pbuf->len))
+    {
+        memcpy(pbuf->payload, out, outlen);
+        pbuf->len = outlen;
+        pbuf->flag |= FLAG_COMPRESS;
+    }
 }
 
 
-// 解压缩 pbuf
 void decompress(pbuf_t *pbuf)
 {
-    if (pbuf->flag & 0x04)
+    if (pbuf->flag & FLAG_COMPRESS)
     {
-        unlzo(pbuf);
+        uint8_t out[2048];
+        int outlen = LZ4_decompress_safe(
+            (const char *)(pbuf->payload),
+            (char *)out,
+            pbuf->len,
+            sizeof(out));
+        assert(outlen > 0);
+        memcpy(pbuf->payload, out, outlen);
+        pbuf->len = outlen;
     }
 }

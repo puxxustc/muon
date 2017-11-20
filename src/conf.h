@@ -42,7 +42,6 @@ typedef struct
     struct {
         char server[64];
         int port[2];
-        double weight;
     } paths[PATH_MAX_COUNT];
     int path_count;
     char key[128];

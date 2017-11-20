@@ -30,9 +30,7 @@
       8B        4B         4B         2B          2B               0~mtu
 
  Flag
-   bit0 - ACK set
-   bit1 - pure ACK payload
-   bit2 - lzo compress
+   bit0 - compress
 
 */
 typedef struct
@@ -52,6 +50,8 @@ typedef struct
 #define CRYPTO_START(pbuf) (&((pbuf)->chksum))
 #define CRYPTO_LEN(pbuf) (offsetof(pbuf_t, payload) - offsetof(pbuf_t, chksum) + (pbuf)->len + (pbuf)->padding)
 #define CRYPTO_NONCE_LEN ((int)(offsetof(pbuf_t, chksum) - offsetof(pbuf_t, nonce)))
+
+#define FLAG_COMPRESS 0x01
 
 extern int encapsulate(pbuf_t *pbuf, int mtu);
 extern int decapsulate(pbuf_t *pbuf, int n);

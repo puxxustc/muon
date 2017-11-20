@@ -5,6 +5,7 @@ class Muon < Formula
 
   depends_on "libmill"
   depends_on "libsodium"
+  depends_on "lz4"
   depends_on "autoconf" => :build
   depends_on "automake" => :build
   depends_on "libtool" => :build

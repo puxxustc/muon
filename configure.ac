@@ -35,10 +35,13 @@ AC_C_BIGENDIAN(
     [])
 
 # Checks for libraries.
+LIB_LZ4="-llz4"
+AC_CHECK_LIB([lz4], [LZ4_compress_default], [AC_SUBST(LIB_LZ4)])
 LIB_MILL="-lmill"
 AC_CHECK_LIB([mill], [mill_now_], [AC_SUBST(LIB_MILL)])
 LIB_SODIUM="-lsodium"
 AC_CHECK_LIB([sodium], [sodium_init], [AC_SUBST(LIB_SODIUM)])
+
 
 # Checks for header files.
 AC_HEADER_ASSERT
@@ -75,7 +78,7 @@ AC_CHECK_TYPES([ptrdiff_t])
 
 # Checks for library functions.
 AC_FUNC_FORK
-AC_CHECK_FUNCS([gettimeofday memmove memset sigaction socket strchr strerror])
+AC_CHECK_FUNCS([gettimeofday memmove memcpy memset sigaction socket strchr strerror])
 
 AC_CONFIG_FILES([Makefile
                  src/Makefile
