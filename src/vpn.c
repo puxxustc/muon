@@ -23,20 +23,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
-#include <time.h>
 #include <unistd.h>
 
 #include <libmill.h>
 #include <sodium.h>
 
 #include "conf.h"
-#include "compress.h"
 #include "crypto.h"
 #include "encapsulate.h"
 #include "log.h"
+#include "totp.h"
 #include "tunif.h"
 #include "utils.h"
+
 #include "vpn.h"
 
 #ifdef HAVE_CONFIG_H
@@ -50,7 +49,7 @@ static int tun;
 
 #define POOL 40
 
-static struct {
+static volatile struct {
     int alive;
     udpsock sock;
     ipaddr remote;
@@ -245,7 +244,7 @@ coroutine static void client_hop(void)
             port = otp_port(i, 0);
             go(udp_worker(i, port, 5 * 1000));
         }
-        msleep(now() + 500);
+        msleep(now() + TOTP_STEP);
     }
 }
 
@@ -390,7 +389,7 @@ coroutine static void heartbeat(void)
     pbuf_t pbuf;
     while (1)
     {
-        msleep(now() + 500);
+        msleep(now() + TOTP_STEP);
 
         for (int path = 0; path < conf->path_count; path++) {
             for (int i = 0; i < POOL; i++)
@@ -446,21 +445,11 @@ static int otp_port(int path, int offset)
 {
     int range = conf->paths[path].port[1] - conf->paths[path].port[0];
 
-    if (range == 0)
+    int port = conf->paths[path].port[0];
+    if (range > 0)
     {
-        return conf->paths[path].port[0];
+        port += totp(range, offset);
     }
 
-    char s[17];
-    uint8_t d[16];
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    sprintf(s, "%016llx", (unsigned long long)(tv.tv_sec * 1000 + tv.tv_usec / 1000) / 500 + offset);
-    hmac(d, s, 16);
-    int port = 0;
-    for (int i = 0; i < 16; i++)
-    {
-        port = (port * 256 + (int)(d[i])) % range;
-    }
-    return port + conf->paths[path].port[0];
+    return port;
 }
