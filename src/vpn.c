@@ -448,7 +448,7 @@ static int otp_port(int path, int offset)
     int port = conf->paths[path].port[0];
     if (range > 0)
     {
-        port += totp(range, offset);
+        port += totp(range + 1, offset);
     }
 
     return port;
