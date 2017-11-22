@@ -253,18 +253,6 @@ int read_conf(const char *file, conf_t *conf)
                 return -1;
             }
         }
-        else if (strcmp(key, "delay") == 0)
-        {
-            conf->delay = atoi(value);
-            if (conf->delay < 0)
-            {
-                conf->delay = 0;
-            }
-            else if (conf->delay > 50)
-            {
-                conf->delay = 50;
-            }
-        }
     }
     fclose(f);
 

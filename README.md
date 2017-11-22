@@ -9,9 +9,9 @@ A fast stateless VPN with simple obfuscation, inspired by [ShadowVPN](https://gi
 ## Features ##
 
 1. Stateless
-2. Perform naïve obfuscation by compression, padding and delayed transmission
-3. Frequent port hopping every 0.5s to escape traffic monitoring
-
+2. Frequent port hopping every 0.5s to escape traffic monitoring
+3. Perform naïve obfuscation by compression and random padding
+4. Multipath support
 
 ## Supported platforms ##
 

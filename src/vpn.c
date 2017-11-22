@@ -423,21 +423,8 @@ coroutine static void udp_sender(pbuf_t *pbuf)
         return;
     }
 
-    if (conf->delay > 0)
-    {
-        pbuf_t copy;
-        copy.flag = pbuf->flag;
-        copy.len = pbuf->len;
-        memcpy(copy.payload, pbuf->payload, pbuf->len);
-        int n = encapsulate(&copy, conf->mtu);
-        msleep(now() + randombytes_uniform(conf->delay + 1));
-        udpsend(paths[path].sock, paths[path].remote, &copy, n);
-    }
-    else
-    {
-        int n = encapsulate(pbuf, conf->mtu);
-        udpsend(paths[path].sock, paths[path].remote, pbuf, n);
-    }
+    int n = encapsulate(pbuf, conf->mtu);
+    udpsend(paths[path].sock, paths[path].remote, pbuf, n);
 }
 
 

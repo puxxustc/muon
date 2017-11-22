@@ -35,7 +35,6 @@ typedef struct
     int mtu;
     int route;
     int nat;
-    int delay;
     char pidfile[64];
     char logfile[64];
     char user[16];
