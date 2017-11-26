@@ -53,7 +53,7 @@ typedef struct
 
 #define FLAG_COMPRESS 0x01
 
-extern int encapsulate(pbuf_t *pbuf, int mtu);
-extern int decapsulate(pbuf_t *pbuf, int n);
+extern int encapsulate(int token, pbuf_t *pbuf, int mtu);
+extern int decapsulate(int token, pbuf_t *pbuf, int n);
 
 #endif

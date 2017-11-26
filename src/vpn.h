@@ -38,9 +38,10 @@ typedef struct {
         int port_start;
         int port_range;
         int alive;
+        int token;
         udpsock sock;
         ipaddr remote;
-        int ports[POOL];
+        int valid_tokens[POOL];
   } paths[PATH_MAX_COUNT];
 } ctx_t;
 

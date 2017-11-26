@@ -27,6 +27,11 @@
 
 int totp(int range, int offset)
 {
+    if (range == 0)
+    {
+        return 0;
+    }
+
     struct timeval tv;
     gettimeofday(&tv, NULL);
     unsigned long long t;
@@ -35,10 +40,10 @@ int totp(int range, int offset)
     sprintf(s, "%016llx", t);
     uint8_t d[16];
     hmac(d, s, 16);
-    int factor = 0;
+    int token = 0;
     for (int i = 0; i < 16; i++)
     {
-        factor = (factor * 256 + (int)(d[i])) % range;
+        token = (token * 256 + (int)(d[i])) % (range + 1);
     }
-    return factor;
+    return token;
 }

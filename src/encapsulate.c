@@ -68,7 +68,7 @@ static void obfuscate(pbuf_t *pbuf, int mtu)
 
 
 // 封装
-int encapsulate(pbuf_t *pbuf, int mtu)
+int encapsulate(int token, pbuf_t *pbuf, int mtu)
 {
     assert(pbuf != NULL);
 
@@ -84,19 +84,19 @@ int encapsulate(pbuf_t *pbuf, int mtu)
 
     // 加密
     ssize_t n = PAYLOAD_OFFSET + pbuf->len + pbuf->padding;
-    crypto_encrypt(pbuf);
+    crypto_encrypt(token, pbuf);
 
     return (int)n;
 }
 
 
 // 解封装
-int decapsulate(pbuf_t *pbuf, int n)
+int decapsulate(int token, pbuf_t *pbuf, int n)
 {
     assert(pbuf != NULL);
 
     // 解密
-    int invalid = crypto_decrypt(pbuf, n);
+    int invalid = crypto_decrypt(token, pbuf, n);
     if (invalid)
     {
         return -1;

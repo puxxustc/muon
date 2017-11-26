@@ -26,8 +26,8 @@
 
 extern int crypto_init(const void *psk);
 extern void hmac(void *out, const void *in, size_t inlen);
-extern void crypto_encrypt(pbuf_t *pbuf);
-extern int  crypto_decrypt(pbuf_t *pbuf, size_t len);
+extern void crypto_encrypt(int token, pbuf_t *pbuf);
+extern int  crypto_decrypt(int token, pbuf_t *pbuf, size_t len);
 
 
 #endif // CRYPTO_H

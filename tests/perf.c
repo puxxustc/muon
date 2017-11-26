@@ -81,8 +81,8 @@ int main()
 
             for (int k = 0; k < count; k++)
             {
-                int n = encapsulate(&copy, mtu);
-                decapsulate(&copy, n);
+                int n = encapsulate(0, &copy, mtu);
+                decapsulate(0, &copy, n);
             }
 
             gettimeofday(&tv, NULL);

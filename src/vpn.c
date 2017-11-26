@@ -53,8 +53,6 @@ coroutine static void udp_sender(pbuf_t *pbuf);
 coroutine static void client_hop(void);
 coroutine static void heartbeat(void);
 
-static int otp_port(int path, int offset);
-
 
 int vpn_init(const conf_t *config)
 {
@@ -157,8 +155,7 @@ int vpn_run(void)
         {
             for (int j = 0; j <= ctx.paths[i].port_range; j++)
             {
-                int port = ctx.paths[i].port_start + j;
-                go(udp_worker(i, port, -1));
+                go(udp_worker(i, j, -1));
             }
         }
     }
@@ -241,16 +238,16 @@ coroutine static void client_hop(void)
     while (1)
     {
         for (int i = 0; i < ctx.path_count; i++) {
-            int port;
-            port = otp_port(i, 0);
-            go(udp_worker(i, port, 5 * 1000));
+            int range = ctx.paths[i].port_range;
+            int token = totp(range, 0);
+            go(udp_worker(i, token, 5 * 1000));
         }
         msleep(now() + TOTP_STEP);
     }
 }
 
 
-coroutine static void udp_worker(int path, int port, int timeout)
+coroutine static void udp_worker(int path, int token, int timeout)
 {
     int64_t deadline;
     if (timeout < 0)
@@ -262,12 +259,14 @@ coroutine static void udp_worker(int path, int port, int timeout)
         deadline = now() + timeout;
     }
 
+    int port = ctx.paths[path].port_start + token;
     ipaddr addr;
     if (ctx.mode == MODE_CLIENT)
     {
         // client
         addr = iplocal(NULL, 0, IPADDR_PREF_IPV6);
         ctx.paths[path].remote = ipremote(ctx.paths[path].server, port, 0, -1);
+        ctx.paths[path].token = token;
         ctx.paths[path].alive = 1;
     }
     else
@@ -299,11 +298,10 @@ coroutine static void udp_worker(int path, int port, int timeout)
         {
             // server
             n = udprecv(s, &addr, &pbuf, ctx.mtu + PAYLOAD_OFFSET, deadline);
-            int port = udpport(s);
             int i;
             for (i = 0; i < POOL; i++)
             {
-                if (port == ctx.paths[path].ports[i])
+                if (token == ctx.paths[path].valid_tokens[i])
                 {
                     break;
                 }
@@ -312,6 +310,7 @@ coroutine static void udp_worker(int path, int port, int timeout)
             {
                 char buf[IPADDR_MAXSTRLEN];
                 ipaddrstr(addr, buf);
+                int port = udpport(s);
                 if (strcmp(buf, "127.0.0.1") != 0)
                 {
                     LOG("invalid packet from %s:%d", buf, port);
@@ -334,7 +333,7 @@ coroutine static void udp_worker(int path, int port, int timeout)
         }
 
         // decrypt, decompress
-        n = decapsulate(&pbuf, n);
+        n = decapsulate(token, &pbuf, n);
         if (n < 0)
         {
             // invalid packet
@@ -357,6 +356,7 @@ coroutine static void udp_worker(int path, int port, int timeout)
         {
             ctx.paths[path].sock = s;
             ctx.paths[path].remote = addr;
+            ctx.paths[path].token = token;
             ctx.paths[path].alive = 1;
         }
 
@@ -380,28 +380,27 @@ coroutine static void udp_worker(int path, int port, int timeout)
 // 发送心跳包
 coroutine static void heartbeat(void)
 {
-    for (int path = 0; path < ctx.path_count; path++) {
-        for (int i = 0; i < POOL; i++)
-        {
-            ctx.paths[path].ports[i] = otp_port(path, i - POOL / 2);
-        }
-    }
-
     pbuf_t pbuf;
     while (1)
     {
-        msleep(now() + TOTP_STEP);
-
         for (int path = 0; path < ctx.path_count; path++) {
-            for (int i = 0; i < POOL; i++)
+            for (int i = 0; i * 2 < POOL; i++)
             {
-                ctx.paths[path].ports[i] = otp_port(path, i - POOL / 2);
+                int range = ctx.paths[path].port_range;
+                int token = totp(range, i);
+                ctx.paths[path].valid_tokens[i * 2] = token;
             }
-
+            for (int i = 1; i * 2 + 1< POOL; i++)
+            {
+                int range = ctx.paths[path].port_range;
+                int token = totp(range, -i);
+                ctx.paths[path].valid_tokens[i * 2 + 1] = token;
+            }
             pbuf.len = 0;
             pbuf.flag = 0;
             go(udp_sender(&pbuf));
         }
+        msleep(now() + TOTP_STEP);
     }
 }
 
@@ -424,20 +423,7 @@ coroutine static void udp_sender(pbuf_t *pbuf)
         return;
     }
 
-    int n = encapsulate(pbuf, ctx.mtu);
+    int token = ctx.paths[path].token;
+    int n = encapsulate(token, pbuf, ctx.mtu);
     udpsend(ctx.paths[path].sock, ctx.paths[path].remote, pbuf, n);
-}
-
-
-static int otp_port(int path, int offset)
-{
-    int range = ctx.paths[path].port_range;
-
-    int port = ctx.paths[path].port_start;
-    if (range > 0)
-    {
-        port += totp(range + 1, offset);
-    }
-
-    return port;
 }

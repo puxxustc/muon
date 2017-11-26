@@ -57,7 +57,7 @@ static void crypto_hmac(pbuf_t *pbuf)
 }
 
 
-void crypto_encrypt(pbuf_t *pbuf)
+void crypto_encrypt(int token, pbuf_t *pbuf)
 {
     // fill nonce
     randombytes_buf(pbuf->nonce, sizeof(pbuf->nonce));
@@ -70,25 +70,33 @@ void crypto_encrypt(pbuf_t *pbuf)
     pbuf->flag = htons(pbuf->flag);
     pbuf->len = htons(pbuf->len);
 
+    uint8_t onetimekey[32];
+    uint8_t factor[2] = { token & 0xffu, (token >> 8) & 0xffu };
+    crypto_generichash_blake2b(onetimekey, sizeof(onetimekey), key, sizeof(key), factor, sizeof(factor));
+
     // encrypt
     crypto_stream_chacha20_xor(
         (void *)CRYPTO_START(pbuf),
         (void *)CRYPTO_START(pbuf),
         len,
         pbuf->nonce,
-        key);
+        onetimekey);
 }
 
 
-int crypto_decrypt(pbuf_t *pbuf, size_t len)
+int crypto_decrypt(int token, pbuf_t *pbuf, size_t len)
 {
+    uint8_t onetimekey[32];
+    uint8_t factor[2] = { token & 0xff, (token >> 8) & 0xff };
+    crypto_generichash_blake2b(onetimekey, sizeof(onetimekey), key, sizeof(key), factor, sizeof(factor));
+
     // decrypt
     crypto_stream_chacha20_xor(
         (void *)CRYPTO_START(pbuf),
         (void *)CRYPTO_START(pbuf),
         len - CRYPTO_NONCE_LEN,
         pbuf->nonce,
-        key);
+        onetimekey);
 
     pbuf->flag = ntohs(pbuf->flag);
     pbuf->len = ntohs(pbuf->len);
