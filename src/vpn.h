@@ -26,6 +26,17 @@
 
 #define POOL 40
 
+typedef struct {
+    uint64_t timestamp;
+    uint64_t out_packets;
+    uint64_t out_bytes;
+    int out_packet_rate;
+    int out_byte_rate;
+    uint64_t in_packets;
+    uint64_t in_bytes;
+    int in_packet_rate;
+    int in_byte_rate;
+} snmp_t;
 
 typedef struct {
     int mode;
@@ -42,12 +53,14 @@ typedef struct {
         udpsock sock;
         ipaddr remote;
         int valid_tokens[POOL];
-  } paths[PATH_MAX_COUNT];
+    } paths[PATH_MAX_COUNT];
+    snmp_t snmp;
 } ctx_t;
 
 
 extern int vpn_init(const conf_t *config);
 extern int vpn_run(void);
+extern void vpn_snmp(void);
 extern void vpn_stop(void);
 
 

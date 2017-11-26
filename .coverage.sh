@@ -49,6 +49,7 @@ sudo src/muon -c tests/client.conf --daemon --pidfile /run/muon.pid --logfile /v
 sleep 2
 sudo ping -i 0.001 -c 100 100.64.255.0
 iperf3 -c 100.64.255.0
+sudo pkill -USR1 muon
 sudo pkill muon
 {
     cat <<EOF
@@ -68,6 +69,7 @@ sudo src/muon -c tests/server.conf --daemon --pidfile /run/muon.pid --logfile /v
 sleep 2
 sudo ping -i 0.001 -c 100 100.64.255.1
 iperf3 -c 100.64.255.1
+sudo pkill -USR1 muon
 sudo pkill muon
 {
     cat <<EOF

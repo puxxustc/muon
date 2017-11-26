@@ -31,8 +31,14 @@
 
 static void signal_cb(int signo)
 {
-    (void)signo;
-    vpn_stop();
+    if (signo == SIGUSR1)
+    {
+        vpn_snmp();
+    }
+    else
+    {
+        vpn_stop();
+    }
 }
 
 int main(int argc, char **argv)
@@ -58,10 +64,12 @@ int main(int argc, char **argv)
     sa.sa_handler = signal_cb;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
+    sigaction(SIGUSR1, &sa, NULL);
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGHUP, &sa, NULL);
 #else
+    signal(SIGUSR1, signal_cb);
     signal(SIGINT, signal_cb);
     signal(SIGTERM, signal_cb);
     signal(SIGHUP, signal_cb);

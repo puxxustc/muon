@@ -19,6 +19,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,12 +53,14 @@ coroutine static void udp_worker(int path, int port, int timeout);
 coroutine static void udp_sender(pbuf_t *pbuf);
 coroutine static void client_hop(void);
 coroutine static void heartbeat(void);
+coroutine static void snmp_logger();
 
 
 int vpn_init(const conf_t *config)
 {
     conf = config;
 
+    memset(&ctx, 0, sizeof(ctx));
     ctx.mode = conf->mode;
     ctx.mtu = conf->mtu;
     ctx.path_count = conf->path_count;
@@ -165,6 +168,8 @@ int vpn_run(void)
     // keepalive
     go(heartbeat());
 
+    go(snmp_logger());
+
     ctx.running = 1;
     while (ctx.running)
     {
@@ -197,6 +202,20 @@ int vpn_run(void)
 
     LOG("exit");
     return (ctx.running == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
+
+void vpn_snmp(void)
+{
+    LOG("snmp:");
+    printf("out_packets: %" PRIu64 "\n", ctx.snmp.out_packets);
+    printf("out_bytes: %" PRIu64 "\n", ctx.snmp.out_bytes);
+    printf("out_packet_rate: %d\n", ctx.snmp.out_packet_rate);
+    printf("out_byte_rate: %d\n", ctx.snmp.out_byte_rate);
+    printf("in_packets: %" PRIu64 "\n", ctx.snmp.in_packets);
+    printf("in_bytes: %" PRIu64 "\n", ctx.snmp.in_bytes);
+    printf("in_packet_rate: %d\n", ctx.snmp.in_packet_rate);
+    printf("in_byte_rate: %d\n", ctx.snmp.in_byte_rate);
 }
 
 
@@ -351,6 +370,9 @@ coroutine static void udp_worker(int path, int token, int timeout)
             continue;
         }
 
+        ctx.snmp.in_packets++;
+        ctx.snmp.in_bytes += n;
+
         // update active socket, remote address
         if (ctx.mode == MODE_SERVER)
         {
@@ -425,5 +447,24 @@ coroutine static void udp_sender(pbuf_t *pbuf)
 
     int token = ctx.paths[path].token;
     int n = encapsulate(token, pbuf, ctx.mtu);
+    ctx.snmp.out_packets++;
+    ctx.snmp.out_bytes += n;
     udpsend(ctx.paths[path].sock, ctx.paths[path].remote, pbuf, n);
+}
+
+
+coroutine static void snmp_logger()
+{
+    snmp_t last;
+    while (1)
+    {
+        ctx.snmp.timestamp = now();
+        uint64_t interval = ctx.snmp.timestamp - last.timestamp;
+        ctx.snmp.out_packet_rate = (int)((ctx.snmp.out_packets - last.out_packets) * 1000 / interval);
+        ctx.snmp.out_byte_rate = (int)((ctx.snmp.out_bytes - last.out_bytes) * 1000 / interval);
+        ctx.snmp.in_packet_rate = (int)((ctx.snmp.in_packets - last.in_packets) * 1000 / interval);
+        ctx.snmp.in_byte_rate = (int)((ctx.snmp.in_bytes - last.in_bytes) * 1000 / interval);
+        memcpy(&last, &(ctx.snmp), sizeof(snmp_t));
+        msleep(ctx.snmp.timestamp + 100);
+    }
 }
