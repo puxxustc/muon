@@ -44,17 +44,7 @@
 
 static const conf_t *conf;
 
-static volatile int running;
-static int tun;
-
-#define POOL 40
-
-static volatile struct {
-    int alive;
-    udpsock sock;
-    ipaddr remote;
-    int ports[POOL];
-} paths[PATH_MAX_COUNT];
+static ctx_t ctx;
 
 
 coroutine static void tun_worker(void);
@@ -70,7 +60,17 @@ int vpn_init(const conf_t *config)
 {
     conf = config;
 
-    LOG("starting muon %s", (conf->mode == MODE_SERVER) ? "server" : "client");
+    ctx.mode = conf->mode;
+    ctx.mtu = conf->mtu;
+    ctx.path_count = conf->path_count;
+    for (int i = 0; i < ctx.path_count; i++)
+    {
+        strcpy(ctx.paths[i].server, conf->paths[i].server);
+        ctx.paths[i].port_start = conf->paths[i].port[0];
+        ctx.paths[i].port_range = conf->paths[i].port[1] - conf->paths[i].port[0];
+    }
+
+    LOG("starting muon %s", (ctx.mode == MODE_SERVER) ? "server" : "client");
 
     if (crypto_init(conf->key) != 0)
     {
@@ -78,8 +78,8 @@ int vpn_init(const conf_t *config)
     }
 
     // create tun device
-    tun = tun_new(conf->tunif);
-    if (tun < 0)
+    ctx.tun = tun_new(conf->tunif);
+    if (ctx.tun < 0)
     {
         LOG("failed to init tun device");
         return -1;
@@ -88,26 +88,26 @@ int vpn_init(const conf_t *config)
 
     // set IP address
 #ifdef TARGET_LINUX
-    if (ifconfig(conf->tunif, conf->mtu, conf->address, conf->address6) != 0)
+    if (ifconfig(conf->tunif, ctx.mtu, conf->address, conf->address6) != 0)
     {
         LOG("failed to add address on tun device");
     }
 #endif
 #ifdef TARGET_DARWIN
-    if (ifconfig(conf->tunif, conf->mtu, conf->address, conf->peer, conf->address6) != 0)
+    if (ifconfig(conf->tunif, ctx.mtu, conf->address, conf->peer, conf->address6) != 0)
     {
         LOG("failed to add address on tun device");
     }
 #endif
 
-    if (conf->mode == MODE_CLIENT)
+    if (ctx.mode == MODE_CLIENT)
     {
         if (conf->route)
         {
             // set route table
-            for (int i = 0; i < conf->path_count; i++)
+            for (int i = 0; i < ctx.path_count; i++)
             {
-                if (route(conf->tunif, conf->paths[i].server, conf->address[0], conf->address6[0]) != 0)
+                if (route(conf->tunif, ctx.paths[i].server, conf->address[0], conf->address6[0]) != 0)
                 {
                     LOG("failed to setup route");
                 }
@@ -147,17 +147,18 @@ int vpn_init(const conf_t *config)
 
 int vpn_run(void)
 {
-    if (conf->mode == MODE_CLIENT)
+    if (ctx.mode == MODE_CLIENT)
     {
         go(client_hop());
     }
     else
     {
-        for (int i = 0; i < conf->path_count; i++)
+        for (int i = 0; i < ctx.path_count; i++)
         {
-            for (int j = conf->paths[i].port[0]; j <= conf->paths[i].port[1]; j++)
+            for (int j = 0; j <= ctx.paths[i].port_range; j++)
             {
-                go(udp_worker(i, j, -1));
+                int port = ctx.paths[i].port_start + j;
+                go(udp_worker(i, port, -1));
             }
         }
     }
@@ -167,15 +168,15 @@ int vpn_run(void)
     // keepalive
     go(heartbeat());
 
-    running = 1;
-    while (running)
+    ctx.running = 1;
+    while (ctx.running)
     {
         msleep(now() + 50);
     }
 
     // turn off nat
 #ifdef TARGET_LINUX
-    if ((conf->mode == MODE_SERVER) && (conf->nat))
+    if ((ctx.mode == MODE_SERVER) && (conf->nat))
     {
         // regain root privilege
         if (conf->user[0] != '\0')
@@ -194,17 +195,17 @@ int vpn_run(void)
 #endif
 
     // clean up
-    tun_close(tun);
+    tun_close(ctx.tun);
     LOG("close tun device");
 
     LOG("exit");
-    return (running == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+    return (ctx.running == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 
 void vpn_stop(void)
 {
-    running = 0;
+    ctx.running = 0;
 }
 
 
@@ -215,11 +216,11 @@ coroutine static void tun_worker(void)
     ssize_t n;
     while (1)
     {
-        events = fdwait(tun, FDW_IN, -1);
+        events = fdwait(ctx.tun, FDW_IN, -1);
         if(events & FDW_IN)
         {
             // 从 tun 设备读取 IP 包
-            n = tun_read(tun, pbuf.payload, conf->mtu);
+            n = tun_read(ctx.tun, pbuf.payload, ctx.mtu);
             if (n <= 0)
             {
                 ERROR("tun_read");
@@ -239,7 +240,7 @@ coroutine static void client_hop(void)
 {
     while (1)
     {
-        for (int i = 0; i < conf->path_count; i++) {
+        for (int i = 0; i < ctx.path_count; i++) {
             int port;
             port = otp_port(i, 0);
             go(udp_worker(i, port, 5 * 1000));
@@ -262,19 +263,18 @@ coroutine static void udp_worker(int path, int port, int timeout)
     }
 
     ipaddr addr;
-    if (conf->mode == MODE_CLIENT)
+    if (ctx.mode == MODE_CLIENT)
     {
         // client
         addr = iplocal(NULL, 0, IPADDR_PREF_IPV6);
-        paths[path].remote = ipremote(conf->paths[path].server, port, 0, -1);
-        paths[path].alive = 1;
+        ctx.paths[path].remote = ipremote(ctx.paths[path].server, port, 0, -1);
+        ctx.paths[path].alive = 1;
     }
     else
     {
         // server
-        addr = iplocal(conf->paths[path].server, port, 0);
-        paths[path].remote = ipremote(conf->paths[path].server, port, 0, -1);
-        paths[path].alive = 1;
+        addr = iplocal(ctx.paths[path].server, port, 0);
+        ctx.paths[path].alive = 0;
     }
     udpsock s = udplisten(addr);
 
@@ -284,26 +284,26 @@ coroutine static void udp_worker(int path, int port, int timeout)
         return;
     }
 
-    paths[path].sock = s;
+    ctx.paths[path].sock = s;
 
     pbuf_t pbuf;
     ssize_t n;
     while (1)
     {
-        if (conf->mode == MODE_CLIENT)
+        if (ctx.mode == MODE_CLIENT)
         {
             // client
-            n = udprecv(s, NULL, &pbuf, conf->mtu + PAYLOAD_OFFSET, deadline);
+            n = udprecv(s, NULL, &pbuf, ctx.mtu + PAYLOAD_OFFSET, deadline);
         }
         else
         {
             // server
-            n = udprecv(s, &addr, &pbuf, conf->mtu + PAYLOAD_OFFSET, deadline);
+            n = udprecv(s, &addr, &pbuf, ctx.mtu + PAYLOAD_OFFSET, deadline);
             int port = udpport(s);
             int i;
             for (i = 0; i < POOL; i++)
             {
-                if (port == paths[path].ports[i])
+                if (port == ctx.paths[path].ports[i])
                 {
                     break;
                 }
@@ -338,7 +338,7 @@ coroutine static void udp_worker(int path, int port, int timeout)
         if (n < 0)
         {
             // invalid packet
-            if (conf->mode == MODE_CLIENT)
+            if (ctx.mode == MODE_CLIENT)
             {
                 LOG("invalid packet, drop");
             }
@@ -353,10 +353,11 @@ coroutine static void udp_worker(int path, int port, int timeout)
         }
 
         // update active socket, remote address
-        if (conf->mode == MODE_SERVER)
+        if (ctx.mode == MODE_SERVER)
         {
-            paths[path].sock = s;
-            paths[path].remote = addr;
+            ctx.paths[path].sock = s;
+            ctx.paths[path].remote = addr;
+            ctx.paths[path].alive = 1;
         }
 
         if (n == 0)
@@ -366,7 +367,7 @@ coroutine static void udp_worker(int path, int port, int timeout)
         }
 
         // 写入到 tun 设备
-        n = tun_write(tun, pbuf.payload, pbuf.len);
+        n = tun_write(ctx.tun, pbuf.payload, pbuf.len);
         if (n < 0)
         {
             ERROR("tun_write");
@@ -379,10 +380,10 @@ coroutine static void udp_worker(int path, int port, int timeout)
 // 发送心跳包
 coroutine static void heartbeat(void)
 {
-    for (int path = 0; path < conf->path_count; path++) {
+    for (int path = 0; path < ctx.path_count; path++) {
         for (int i = 0; i < POOL; i++)
         {
-            paths[path].ports[i] = otp_port(path, i - POOL / 2);
+            ctx.paths[path].ports[i] = otp_port(path, i - POOL / 2);
         }
     }
 
@@ -391,10 +392,10 @@ coroutine static void heartbeat(void)
     {
         msleep(now() + TOTP_STEP);
 
-        for (int path = 0; path < conf->path_count; path++) {
+        for (int path = 0; path < ctx.path_count; path++) {
             for (int i = 0; i < POOL; i++)
             {
-                paths[path].ports[i] = otp_port(path, i - POOL / 2);
+                ctx.paths[path].ports[i] = otp_port(path, i - POOL / 2);
             }
 
             pbuf.len = 0;
@@ -411,28 +412,28 @@ coroutine static void udp_sender(pbuf_t *pbuf)
     assert(pbuf != NULL);
 
     static int path = 0;
-    if (conf->path_count > 0)
+    if (ctx.path_count > 0)
     {
-        path = (path + 1) % conf->path_count;
+        path = (path + 1) % ctx.path_count;
     }
 
-    assert(paths[path].sock != NULL);
+    assert(ctx.paths[path].sock != NULL);
 
-    if (!paths[path].alive)
+    if (!ctx.paths[path].alive)
     {
         return;
     }
 
-    int n = encapsulate(pbuf, conf->mtu);
-    udpsend(paths[path].sock, paths[path].remote, pbuf, n);
+    int n = encapsulate(pbuf, ctx.mtu);
+    udpsend(ctx.paths[path].sock, ctx.paths[path].remote, pbuf, n);
 }
 
 
 static int otp_port(int path, int offset)
 {
-    int range = conf->paths[path].port[1] - conf->paths[path].port[0];
+    int range = ctx.paths[path].port_range;
 
-    int port = conf->paths[path].port[0];
+    int port = ctx.paths[path].port_start;
     if (range > 0)
     {
         port += totp(range + 1, offset);

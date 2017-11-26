@@ -20,7 +20,29 @@
 #ifndef VPN_H
 #define VPN_H
 
+#include <libmill.h>
+
 #include "conf.h"
+
+#define POOL 40
+
+
+typedef struct {
+    int mode;
+    int mtu;
+    int path_count;
+    int running;
+    int tun;
+    struct {
+        char server[64];
+        int port_start;
+        int port_range;
+        int alive;
+        udpsock sock;
+        ipaddr remote;
+        int ports[POOL];
+  } paths[PATH_MAX_COUNT];
+} ctx_t;
 
 
 extern int vpn_init(const conf_t *config);
