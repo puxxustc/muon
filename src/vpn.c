@@ -256,7 +256,8 @@ coroutine static void client_hop(void)
 {
     while (1)
     {
-        for (int i = 0; i < ctx.path_count; i++) {
+        for (int i = 0; i < ctx.path_count; i++)
+        {
             int range = ctx.paths[i].port_range;
             int token = totp(range, 0);
             go(udp_worker(i, token, 5 * 1000));
@@ -286,7 +287,6 @@ coroutine static void udp_worker(int path, int token, int timeout)
         addr = iplocal(NULL, 0, IPADDR_PREF_IPV6);
         ctx.paths[path].remote = ipremote(ctx.paths[path].server, port, 0, -1);
         ctx.paths[path].token = token;
-        ctx.paths[path].alive = 1;
     }
     else
     {
@@ -379,8 +379,9 @@ coroutine static void udp_worker(int path, int token, int timeout)
             ctx.paths[path].sock = s;
             ctx.paths[path].remote = addr;
             ctx.paths[path].token = token;
-            ctx.paths[path].alive = 1;
         }
+        // renew path alive ttl
+        ctx.paths[path].alive = 5;
 
         if (n == 0)
         {
@@ -405,7 +406,8 @@ coroutine static void heartbeat(void)
     pbuf_t pbuf;
     while (1)
     {
-        for (int path = 0; path < ctx.path_count; path++) {
+        for (int path = 0; path < ctx.path_count; path++)
+        {
             for (int i = 0; i * 2 < POOL; i++)
             {
                 int range = ctx.paths[path].port_range;
@@ -418,11 +420,24 @@ coroutine static void heartbeat(void)
                 int token = totp(range, -i);
                 ctx.paths[path].valid_tokens[i * 2 + 1] = token;
             }
-            pbuf.len = 0;
-            pbuf.flag = 0;
-            go(udp_sender(&pbuf));
+            if ((ctx.mode == MODE_CLIENT) || (ctx.paths[path].alive > 0))
+            {
+                pbuf.len = 0;
+                pbuf.flag = 0;
+                int token = ctx.paths[path].token;
+                int n = encapsulate(token, &pbuf, ctx.mtu);
+                ctx.snmp.out_packets++;
+                ctx.snmp.out_bytes += n;
+                udpsend(ctx.paths[path].sock, ctx.paths[path].remote, &pbuf, n);
+            }
+            if (ctx.paths[path].alive > 0)
+            {
+                ctx.paths[path].alive--;
+            }
         }
-        msleep(now() + TOTP_STEP);
+        int t = TOTP_STEP * 2 / 3;
+        t = t + randombytes_uniform(t);
+        msleep(now() + t);
     }
 }
 
@@ -435,12 +450,20 @@ coroutine static void udp_sender(pbuf_t *pbuf)
     static int path = 0;
     if (ctx.path_count > 0)
     {
-        path = (path + 1) % ctx.path_count;
+        int last = path;
+        for (;;)
+        {
+            path = (path + 1) % ctx.path_count;
+            if ((ctx.paths[path].alive > 0) || (path == last))
+            {
+                break;
+            }
+        }
     }
 
     assert(ctx.paths[path].sock != NULL);
 
-    if (!ctx.paths[path].alive)
+    if (ctx.paths[path].alive <= 0)
     {
         return;
     }
