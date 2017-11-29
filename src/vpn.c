@@ -479,6 +479,7 @@ coroutine static void udp_sender(pbuf_t *pbuf)
 coroutine static void snmp_logger()
 {
     snmp_t last;
+    memset(&last, 0, sizeof(last));
     while (1)
     {
         ctx.snmp.timestamp = now();
