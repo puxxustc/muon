@@ -216,6 +216,7 @@ void vpn_snmp(void)
     printf("in_bytes: %" PRIu64 "\n", ctx.snmp.in_bytes);
     printf("in_packet_rate: %d\n", ctx.snmp.in_packet_rate);
     printf("in_byte_rate: %d\n", ctx.snmp.in_byte_rate);
+    fflush(stdout);
 }
 
 
@@ -422,13 +423,16 @@ coroutine static void heartbeat(void)
             }
             if ((ctx.mode == MODE_CLIENT) || (ctx.paths[path].alive > 0))
             {
-                pbuf.len = 0;
-                pbuf.flag = 0;
-                int token = ctx.paths[path].token;
-                int n = encapsulate(token, &pbuf, ctx.mtu);
-                ctx.snmp.out_packets++;
-                ctx.snmp.out_bytes += n;
-                udpsend(ctx.paths[path].sock, ctx.paths[path].remote, &pbuf, n);
+                if (ctx.paths[path].sock)
+                {
+                    pbuf.len = 0;
+                    pbuf.flag = 0;
+                    int token = ctx.paths[path].token;
+                    int n = encapsulate(token, &pbuf, ctx.mtu);
+                    ctx.snmp.out_packets++;
+                    ctx.snmp.out_bytes += n;
+                    udpsend(ctx.paths[path].sock, ctx.paths[path].remote, &pbuf, n);
+                }
             }
             if (ctx.paths[path].alive > 0)
             {
