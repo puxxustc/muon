@@ -28,6 +28,7 @@
 
 typedef struct {
     uint64_t timestamp;
+    uint64_t uptime;
     uint64_t out_packets;
     uint64_t out_bytes;
     int out_packet_rate;

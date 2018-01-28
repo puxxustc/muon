@@ -208,6 +208,7 @@ int vpn_run(void)
 void vpn_snmp(void)
 {
     LOG("snmp:");
+    printf("uptime: %" PRIu64 "s\n", ctx.snmp.uptime / 1000);
     printf("out_packets: %" PRIu64 "\n", ctx.snmp.out_packets);
     printf("out_bytes: %" PRIu64 "\n", ctx.snmp.out_bytes);
     printf("out_packet_rate: %d\n", ctx.snmp.out_packet_rate);
@@ -484,9 +485,11 @@ coroutine static void snmp_logger()
 {
     snmp_t last;
     memset(&last, 0, sizeof(last));
+    uint64_t start = now();
     while (1)
     {
         ctx.snmp.timestamp = now();
+        ctx.snmp.uptime = ctx.snmp.timestamp - start;
         uint64_t interval = ctx.snmp.timestamp - last.timestamp;
         ctx.snmp.out_packet_rate = (int)((ctx.snmp.out_packets - last.out_packets) * 1000 / interval);
         ctx.snmp.out_byte_rate = (int)((ctx.snmp.out_bytes - last.out_bytes) * 1000 / interval);
